@@ -239,7 +239,7 @@ bool print_pi()
   // 14159.....
   //
   // Here, the digits after the decimal point are grouped
-  // in sets digits per line, and the running digit number
+  // in sets of digits per line, and the running digit number
   // is reported at the end of each line. The digit grouping
   // is defined with parameters listed above.
 
