@@ -14,8 +14,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <deque>
-#include <limits>
+#include <functional>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <vector>
 #include <boost/math/constants/constants.hpp>
@@ -99,23 +100,22 @@ namespace my_math
 
 namespace orthogonal_polynomial_series
 {
-  template<typename T> static inline T orthogonal_polynomial_template(const T& x, const std::uint32_t n, std::vector<T>* const vp = nullptr)
+  template<typename T> static inline T orthogonal_polynomial_template(const T& x, const std::uint32_t n, std::vector<T>* const vp = static_cast<std::vector<T>*>(0u))
   {
-    // Compute the value of an orthogonal chebyshev polynomial
-    // of type chebyshev_t. Use stable upward recursion for
-    // higher orders.
+    // Compute the value of an orthogonal chebyshev polinomial.
+    // Use stable upward recursion.
 
     if(vp != nullptr)
     {
       vp->clear();
-      vp->reserve(static_cast<std::size_t>(n + 1U));
+      vp->reserve(static_cast<std::size_t>(n + 1u));
     }
 
     T y0 = my_math::one<T>();
 
     if(vp != nullptr) { vp->push_back(y0); }
 
-    if(n == static_cast<std::uint32_t>(0U))
+    if(n == static_cast<std::uint32_t>(0u))
     {
       return y0;
     }
@@ -124,7 +124,7 @@ namespace orthogonal_polynomial_series
 
     if(vp != nullptr) { vp->push_back(y1); }
 
-    if(n == static_cast<std::uint32_t>(1U))
+    if(n == static_cast<std::uint32_t>(1u))
     {
       return y1;
     }
@@ -164,23 +164,17 @@ template<class T> T my_math::chebyshev_t(const std::int32_t n, const T& x)
 
   if(n < static_cast<std::int32_t>(0))
   {
-    return chebyshev_t(static_cast<std::int32_t>(-n), x);
+    const std::int32_t nn = static_cast<std::int32_t>(-n);
+
+    return chebyshev_t(nn, x);
   }
   else
   {
-    using orthogonal_polynomial_series::orthogonal_polynomial_template;
-
-    return orthogonal_polynomial_template(x, static_cast<std::uint32_t>(n));
+    return orthogonal_polynomial_series::orthogonal_polynomial_template(x, static_cast<std::uint32_t>(n));
   }
 }
 
-template<class T>
-T my_math::chebyshev_t(const std::uint32_t n, const T& x, std::vector<T>* const vp)
-{
-  using orthogonal_polynomial_series::orthogonal_polynomial_template;
-
-  return orthogonal_polynomial_template(x, static_cast<std::int32_t>(n), vp);
-}
+template<class T> T my_math::chebyshev_t(const std::uint32_t n, const T& x, std::vector<T>* const vp) { return orthogonal_polynomial_series::orthogonal_polynomial_template(x, static_cast<std::int32_t>(n),  vp); }
 
 namespace util
 {
@@ -252,7 +246,7 @@ namespace examples
       hypergeometric_pfq_base(const T& z,
                               const T& w) : Z(z),
                                             W(w),
-                                            C(0U) { }
+                                            C(0u) { }
 
       virtual std::int32_t N() const { return static_cast<std::int32_t>(util::digit_scale<T>() * 500.0F); }
     };
@@ -280,7 +274,7 @@ namespace examples
         T A2(0);
         T A1(boost::math::tools::root_epsilon<T>());
 
-        hypergeometric_pfq_base<T>::C.resize(1U, A1);
+        hypergeometric_pfq_base<T>::C.resize(1u, A1);
 
         std::int32_t X1 = N2;
 
@@ -336,7 +330,7 @@ namespace examples
         T A2(0);
         T A1(boost::math::tools::root_epsilon<T>());
 
-        hypergeometric_pfq_base<T>::C.resize(1U, A1);
+        hypergeometric_pfq_base<T>::C.resize(1u, A1);
 
         std::int32_t X1 = N2;
 
@@ -399,7 +393,7 @@ namespace examples
         T A2(0);
         T A1(boost::math::tools::root_epsilon<T>());
 
-        hypergeometric_pfq_base<T>::C.resize(1U, A1);
+        hypergeometric_pfq_base<T>::C.resize(1u, A1);
 
         std::int32_t X  = N1;
         std::int32_t X1 = N2;
@@ -468,7 +462,7 @@ namespace examples
         T A2(0);
         T A1(boost::math::tools::root_epsilon<T>());
 
-        hypergeometric_pfq_base<T>::C.resize(1U, A1);
+        hypergeometric_pfq_base<T>::C.resize(1u, A1);
 
         std::int32_t X  = N1;
         T            PP = X + AP;
@@ -541,7 +535,7 @@ namespace examples
         T A2(0);
         T A1(boost::math::tools::root_epsilon<T>());
 
-        hypergeometric_pfq_base<T>::C.resize(1U, A1);
+        hypergeometric_pfq_base<T>::C.resize(1u, A1);
 
         std::int32_t X  = N1;
         std::int32_t X1 = N2;
@@ -670,7 +664,7 @@ int main()
   my_stopwatch.reset();
 
   // Generate a table of values of Hypergeometric0F1.
-  // Compare with the Mathematica(R) command:
+  // Compare with the Mathematica command:
   // Table[N[HypergeometricPFQ[{}, {3/7}, -(i*EulerGamma)], 100], {i, 1, 20, 1}]
   std::for_each(hypergeometric_0f1_results.begin(),
                 hypergeometric_0f1_results.end(),
@@ -698,7 +692,7 @@ int main()
   my_stopwatch.reset();
 
   // Generate a table of values of Hypergeometric1F0.
-  // Compare with the Mathematica(R) command:
+  // Compare with the Mathematica command:
   // Table[N[HypergeometricPFQ[{3/7}, {}, -(i*EulerGamma)], 100], {i, 1, 20, 1}]
   std::for_each(hypergeometric_1f0_results.begin(),
                 hypergeometric_1f0_results.end(),
@@ -726,7 +720,7 @@ int main()
   my_stopwatch.reset();
 
   // Generate a table of values of Hypergeometric1F1.
-  // Compare with the Mathematica(R) command:
+  // Compare with the Mathematica command:
   // Table[N[HypergeometricPFQ[{3/7}, {2/3}, -(i*EulerGamma)], 100], {i, 1, 20, 1}]
   std::for_each(hypergeometric_1f1_results.begin(),
                 hypergeometric_1f1_results.end(),
@@ -754,7 +748,7 @@ int main()
   my_stopwatch.reset();
 
   // Generate a table of values of Hypergeometric1F2.
-  // Compare with the Mathematica(R) command:
+  // Compare with the Mathematica command:
   // Table[N[HypergeometricPFQ[{3/7}, {2/3, 1/4}, -(i*EulerGamma)], 100], {i, 1, 20, 1}]
   std::for_each(hypergeometric_1f2_results.begin(),
                 hypergeometric_1f2_results.end(),
@@ -782,7 +776,7 @@ int main()
   my_stopwatch.reset();
 
   // Generate a table of values of Hypergeometric2F1.
-  // Compare with the Mathematica(R) command:
+  // Compare with the Mathematica command:
   // Table[N[HypergeometricPFQ[{3/7, 2/3}, {1/4}, -(i * EulerGamma)], 100], {i, 1, 20, 1}]
   std::for_each(hypergeometric_2f1_results.begin(),
                 hypergeometric_2f1_results.end(),

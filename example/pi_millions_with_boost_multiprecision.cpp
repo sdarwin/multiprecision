@@ -16,19 +16,17 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include <boost/lexical_cast.hpp>
 #include <boost/multiprecision/gmp.hpp>
 
 namespace pi { namespace millions { namespace detail {
 
 struct outfile_parameters
 {
-  static const std::size_t  number_of_digits_extra_trunc = 20U;
+  static const std::size_t  number_of_digits_extra_trunc = 10U;
   static const std::size_t  number_of_digits_per_word    = 10U;
   static const std::size_t  number_of_words_per_line     = 5U;
   static const std::size_t  number_of_digits_per_line    = (number_of_digits_per_word * number_of_words_per_line);
@@ -71,6 +69,42 @@ bool get_output_files(std::vector<std::ofstream>& output_files)
   return all_output_files_are_open;
 }
 
+int ilogb(float x)
+{
+  if(std::fabs(x) < (std::numeric_limits<float>::min)())
+  {
+    return static_cast<int>(std::logb(std::numeric_limits<float>::epsilon() / 100));
+  }
+  else
+  {
+    return static_cast<int>(std::logb(x));
+  }
+}
+
+int ilogb(double x)
+{
+  if(std::fabs(x) < (std::numeric_limits<double>::min)())
+  {
+    return static_cast<int>(std::logb(std::numeric_limits<double>::epsilon() / 100));
+  }
+  else
+  {
+    return static_cast<int>(std::logb(x));
+  }
+}
+
+int ilogb(long double x)
+{
+  if(std::fabs(x) < (std::numeric_limits<long double>::min)())
+  {
+    return static_cast<int>(std::logb(std::numeric_limits<long double>::epsilon() / 100));
+  }
+  else
+  {
+    return static_cast<int>(std::logb(x));
+  }
+}
+
 // *****************************************************************************
 // Function    : template<typename float_type>
 //               const float_type& calculate_pi_template(const bool b_trace)
@@ -108,12 +142,6 @@ const float_type& calculate_pi(const bool b_trace)
     // than about 25 or 30. After 20 iterations, the precision
     // is about 1.4 million decimal digits.
 
-    static const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
-
-    std::stringstream sstream_iteration_term_order;
-
-    std::match_results<std::string::const_iterator> mr;
-
     for(unsigned k = 1U; k < 64U; ++k)
     {
       a      += sqrt(bB);
@@ -125,23 +153,16 @@ const float_type& calculate_pi(const bool b_trace)
 
       s += iterate_term;
 
-      // Clear the stringstream object of the iteration term's order.
-      sstream_iteration_term_order.str(std::string());
-
       // Extract the base-10 order of magnitude for a rough estimate of
-      // the digits in this iteration of the calculation. Here, we produce
-      // a short printout of the iteration term that is subsequently
-      // parsed with a regular expression for extracting the base-10 order.
+      // the digits in this iteration of the calculation.
+      std::uint64_t approximate_digits10_of_pi = static_cast<std::uint64_t>(-ilogb(iterate_term));
 
-      sstream_iteration_term_order << std::scientific << std::setprecision(8) << iterate_term;
+      static_assert(   (std::numeric_limits<float_type>::radix == 2)
+                    || (std::numeric_limits<float_type>::radix == 10), "error: radix of float_type must be 2 or 10");
 
-      std::uint64_t approximate_number_of_digits = (std::numeric_limits<std::uint64_t>::max)();
-
-      const std::string const_str_iteration_order(sstream_iteration_term_order.str());
-
-      if(std::regex_match(const_str_iteration_order, mr, rx))
+      if(std::numeric_limits<float_type>::radix == 2)
       {
-        approximate_number_of_digits = boost::lexical_cast<std::uint64_t>(mr[1U]);
+        approximate_digits10_of_pi = (approximate_digits10_of_pi * UINT64_C(301)) / 1000U;
       }
 
       if(b_trace)
@@ -149,13 +170,15 @@ const float_type& calculate_pi(const bool b_trace)
         std::cout << "Approximate digits of pi : "
                   << std::right
                   << std::setw(12)
-                  << approximate_number_of_digits
-                  << '\n';
+                  << approximate_digits10_of_pi
+                  << ", calculating "
+                  << (std::numeric_limits<float_type>::digits10 - 1)
+                  << " digits.\n";
       }
 
       // Check the number of digits available in this iteration
       // and break if the calculation is finished.
-      if(approximate_number_of_digits > static_cast<std::uint64_t>(std::numeric_limits<float_type>::max_digits10))
+      if(approximate_digits10_of_pi >= static_cast<std::uint64_t>(std::numeric_limits<float_type>::digits10))
       {
         break;
       }
@@ -338,7 +361,7 @@ namespace
 {
   struct my_digits_of_pi
   {
-    static const unsigned digits10 = 1000000U + 1U;
+    static const unsigned digits10 = 100000000U + 1U;
   };
 
   typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,

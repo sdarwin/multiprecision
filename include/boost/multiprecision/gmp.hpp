@@ -59,10 +59,10 @@ namespace detail{
 template <unsigned digits10>
 struct gmp_float_imp
 {
-   typedef mpl::list<long, long long>                   signed_types;
-   typedef mpl::list<unsigned long, unsigned long long> unsigned_types;
-   typedef mpl::list<double, long double>               float_types;
-   typedef long                                         exponent_type;
+   typedef mpl::list<long, long long>                 signed_types;
+   typedef mpl::list<unsigned long, unsigned long long>   unsigned_types;
+   typedef mpl::list<double, long double>            float_types;
+   typedef long                                      exponent_type;
 
    gmp_float_imp() BOOST_NOEXCEPT {}
 
@@ -548,7 +548,7 @@ struct gmp_float<0> : public detail::gmp_float_imp<0>
    }
    unsigned precision()const BOOST_NOEXCEPT
    {
-      return multiprecision::detail::digits2_2_10(static_cast<unsigned long>(mpf_get_prec(this->m_data)));
+      return multiprecision::detail::digits2_2_10(mpf_get_prec(this->m_data));
    }
    void precision(unsigned digits10) BOOST_NOEXCEPT
    {
@@ -963,8 +963,10 @@ inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& v
 template <unsigned Digits10>
 inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& val, long* e)
 {
-   mpf_get_d_2exp(e, val.data());
-   eval_ldexp(result, val, -*e);
+   long long v;
+   mpf_get_d_2exp(&v, val.data());
+   *e = v;
+   eval_ldexp(result, val, -v);
 }
 
 struct gmp_int
@@ -1539,7 +1541,7 @@ inline void eval_convert_to(unsigned long* result, const gmp_int& val)
       *result = (std::numeric_limits<unsigned long>::max)();
    }
    else
-      *result = static_cast<unsigned long>(mpz_get_ui(val.data()));
+      *result = mpz_get_ui(val.data());
 }
 inline void eval_convert_to(long* result, const gmp_int& val)
 {
@@ -1549,7 +1551,7 @@ inline void eval_convert_to(long* result, const gmp_int& val)
       *result *= mpz_sgn(val.data());
    }
    else
-      *result = static_cast<long>(mpz_get_si(val.data()));
+      *result = mpz_get_si(val.data());
 }
 inline void eval_convert_to(double* result, const gmp_int& val)
 {
@@ -1606,7 +1608,7 @@ inline unsigned eval_lsb(const gmp_int& val)
    {
       BOOST_THROW_EXCEPTION(std::range_error("Testing individual bits in negative values is not supported - results are undefined."));
    }
-   return static_cast<unsigned>(mpz_scan1(val.data(), 0));
+   return mpz_scan1(val.data(), 0);
 }
 
 inline unsigned eval_msb(const gmp_int& val)
@@ -1620,7 +1622,7 @@ inline unsigned eval_msb(const gmp_int& val)
    {
       BOOST_THROW_EXCEPTION(std::range_error("Testing individual bits in negative values is not supported - results are undefined."));
    }
-   return static_cast<unsigned>(mpz_sizeinbase(val.data(), 2) - 1);
+   return mpz_sizeinbase(val.data(), 2) - 1;
 }
 
 inline bool eval_bit_test(const gmp_int& val, unsigned index)
@@ -2015,7 +2017,14 @@ inline int eval_get_sign(const gmp_rational& val)
 }
 inline void eval_convert_to(double* result, const gmp_rational& val)
 {
-   *result = mpq_get_d(val.data());
+   //
+   // This does not round correctly:
+   //
+   //*result = mpq_get_d(val.data());
+   //
+   // This does:
+   //
+   boost::multiprecision::detail::generic_convert_rational_to_float(*result, val);
 }
 
 inline void eval_convert_to(long* result, const gmp_rational& val)
@@ -2253,10 +2262,10 @@ public:
    {
       return -(max)();
    }
-   BOOST_STATIC_CONSTEXPR long long digits = static_cast<long long>((Digits10 * 1000LL) / 301LL + ((Digits10 * 1000LL) % 301LL ? 2 : 1));
+   BOOST_STATIC_CONSTEXPR long long digits = (static_cast<long long>(Digits10) * 1000LL) / 301L + ((static_cast<long long>(Digits10) * 1000LL) % 301L ? 2 : 1);
    BOOST_STATIC_CONSTEXPR int digits10 = Digits10;
    // Have to allow for a possible extra limb inside the gmp data structure:
-   BOOST_STATIC_CONSTEXPR int max_digits10 = static_cast<int>(Digits10 + 2 + ((GMP_LIMB_BITS * 301LL) / 1000LL));
+   BOOST_STATIC_CONSTEXPR int max_digits10 = static_cast<long long>(Digits10) + 2 + ((GMP_LIMB_BITS * 301LL) / 1000L);
    BOOST_STATIC_CONSTEXPR bool is_signed = true;
    BOOST_STATIC_CONSTEXPR bool is_integer = false;
    BOOST_STATIC_CONSTEXPR bool is_exact = false;
@@ -2333,7 +2342,7 @@ public:
    static number_type (min)() { return number_type(); }
    static number_type (max)() { return number_type(); }
    static number_type lowest() { return number_type(); }
-   BOOST_STATIC_CONSTEXPR long long digits = 0;
+   BOOST_STATIC_CONSTEXPR int digits = 0;
    BOOST_STATIC_CONSTEXPR int digits10 = 0;
    BOOST_STATIC_CONSTEXPR int max_digits10 = 0;
    BOOST_STATIC_CONSTEXPR bool is_signed = false;

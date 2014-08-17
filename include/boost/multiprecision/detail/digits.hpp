@@ -10,16 +10,12 @@ namespace boost{ namespace multiprecision{ namespace detail{
 
 inline unsigned long digits10_2_2(unsigned long d10)
 {
-   const unsigned long long d10_uLL = static_cast<unsigned long long>(d10);
-
-   return static_cast<unsigned long>((d10_uLL * 1000uLL) / 301u + ((d10_uLL * 1000uLL) % 301u ? 2u : 1u));
+   return (d10 * 1000uLL) / 301uL + ((d10 * 1000uLL) % 301uL ? 2u : 1u);
 }
 
 inline unsigned long digits2_2_10(unsigned long d2)
 {
-   const unsigned long long d2_uLL = static_cast<unsigned long long>(d2);
-
-   return static_cast<unsigned long>((d2_uLL * 301uLL) / 1000u);
+   return (d2 * 301uLL) / 1000uL;
 }
 
 }}} // namespaces
