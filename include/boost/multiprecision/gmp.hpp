@@ -963,10 +963,8 @@ inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& v
 template <unsigned Digits10>
 inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& val, long* e)
 {
-   long long v;
-   mpf_get_d_2exp(&v, val.data());
-   *e = v;
-   eval_ldexp(result, val, -v);
+   mpf_get_d_2exp(e, val.data());
+   eval_ldexp(result, val, -*e);
 }
 
 struct gmp_int
@@ -2262,10 +2260,10 @@ public:
    {
       return -(max)();
    }
-   BOOST_STATIC_CONSTEXPR long long digits = (static_cast<long long>(Digits10) * 1000LL) / 301L + ((static_cast<long long>(Digits10) * 1000LL) % 301L ? 2 : 1);
+   BOOST_STATIC_CONSTEXPR long long digits = static_cast<long long>((Digits10 * 1000LL) / 301LL + ((Digits10 * 1000LL) % 301LL ? 2 : 1));
    BOOST_STATIC_CONSTEXPR int digits10 = Digits10;
    // Have to allow for a possible extra limb inside the gmp data structure:
-   BOOST_STATIC_CONSTEXPR int max_digits10 = static_cast<long long>(Digits10) + 2 + ((GMP_LIMB_BITS * 301LL) / 1000L);
+   BOOST_STATIC_CONSTEXPR int max_digits10 = Digits10 + 2 + static_cast<int>((GMP_LIMB_BITS * 301LL) / 1000LL);
    BOOST_STATIC_CONSTEXPR bool is_signed = true;
    BOOST_STATIC_CONSTEXPR bool is_integer = false;
    BOOST_STATIC_CONSTEXPR bool is_exact = false;

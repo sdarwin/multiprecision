@@ -16,11 +16,14 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include <boost/lexical_cast.hpp>
 #include <boost/multiprecision/gmp.hpp>
+//#include <boost/multiprecision/mpfr.hpp>
 
 namespace pi { namespace millions { namespace detail {
 
@@ -69,42 +72,6 @@ bool get_output_files(std::vector<std::ofstream>& output_files)
   return all_output_files_are_open;
 }
 
-int ilogb(float x)
-{
-  if(std::fabs(x) < (std::numeric_limits<float>::min)())
-  {
-    return static_cast<int>(std::logb(std::numeric_limits<float>::epsilon() / 100));
-  }
-  else
-  {
-    return static_cast<int>(std::logb(x));
-  }
-}
-
-int ilogb(double x)
-{
-  if(std::fabs(x) < (std::numeric_limits<double>::min)())
-  {
-    return static_cast<int>(std::logb(std::numeric_limits<double>::epsilon() / 100));
-  }
-  else
-  {
-    return static_cast<int>(std::logb(x));
-  }
-}
-
-int ilogb(long double x)
-{
-  if(std::fabs(x) < (std::numeric_limits<long double>::min)())
-  {
-    return static_cast<int>(std::logb(std::numeric_limits<long double>::epsilon() / 100));
-  }
-  else
-  {
-    return static_cast<int>(std::logb(x));
-  }
-}
-
 // *****************************************************************************
 // Function    : template<typename float_type>
 //               const float_type& calculate_pi_template(const bool b_trace)
@@ -122,6 +89,7 @@ int ilogb(long double x)
 template<typename float_type>
 const float_type& calculate_pi(const bool b_trace)
 {
+  using std::fabs;
   using std::sqrt;
 
   static bool is_init = false;
@@ -131,6 +99,10 @@ const float_type& calculate_pi(const bool b_trace)
   if(!is_init)
   {
     is_init = true;
+
+    static const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
+    std::match_results<std::string::const_iterator> mr;
+    std::stringstream ss;
 
     float_type a (1);
     float_type bB(0.5F);
@@ -153,32 +125,32 @@ const float_type& calculate_pi(const bool b_trace)
 
       s += iterate_term;
 
-      // Extract the base-10 order of magnitude for a rough estimate of
-      // the digits in this iteration of the calculation.
-      std::uint64_t approximate_digits10_of_pi = static_cast<std::uint64_t>(-ilogb(iterate_term));
+      ss.str(std::string());
 
-      static_assert(   (std::numeric_limits<float_type>::radix == 2)
-                    || (std::numeric_limits<float_type>::radix == 10), "error: radix of float_type must be 2 or 10");
+      ss << std::scientific << std::setprecision(8) << iterate_term;
 
-      if(std::numeric_limits<float_type>::radix == 2)
-      {
-        approximate_digits10_of_pi = (approximate_digits10_of_pi * UINT64_C(301)) / 1000U;
-      }
+      const std::string str(ss.str());
+
+      std::uint64_t approximate_digits_of_pi = (std::regex_match(str, mr, rx) ? boost::lexical_cast<std::uint64_t>(mr[1U])
+                                                                              : UINT64_C(0));
 
       if(b_trace)
       {
-        std::cout << "Approximate digits of pi : "
-                  << std::right
-                  << std::setw(12)
-                  << approximate_digits10_of_pi
-                  << ", calculating "
-                  << (std::numeric_limits<float_type>::digits10 - 1)
-                  << " digits.\n";
+        // Extract the base-10 order of magnitude for a rough estimate of
+        // the digits in this iteration of the calculation. Here, we produce
+        // a short printout of the iteration term that is subsequently
+        // parsed with a regular expression for extracting the base-10 order.
+
+          std::cout << "Approximate digits of pi : "
+                    << std::right
+                    << std::setw(12)
+                    << approximate_digits_of_pi
+                    << '\n';
       }
 
-      // Check the number of digits available in this iteration
-      // and break if the calculation is finished.
-      if(approximate_digits10_of_pi >= static_cast<std::uint64_t>(std::numeric_limits<float_type>::digits10))
+      // Test the significant digits of the last iteration change.
+      // If it is large enough, then the calculation is finished.
+      if(approximate_digits_of_pi > ((std::numeric_limits<float_type>::digits10 / 2) + 16))
       {
         break;
       }
@@ -361,7 +333,7 @@ namespace
 {
   struct my_digits_of_pi
   {
-    static const unsigned digits10 = 100000000U + 1U;
+    static const unsigned digits10 = 1000000U + 1U;
   };
 
   typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,
