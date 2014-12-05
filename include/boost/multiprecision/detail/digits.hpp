@@ -10,12 +10,12 @@ namespace boost{ namespace multiprecision{ namespace detail{
 
 inline unsigned long digits10_2_2(unsigned long d10)
 {
-   return (d10 * 1000uLL) / 301uL + ((d10 * 1000uLL) % 301uL ? 2u : 1u);
+   return (d10 * 1000uL) / 301uL + ((d10 * 1000uL) % 301 ? 2u : 1u);
 }
 
 inline unsigned long digits2_2_10(unsigned long d2)
 {
-   return (d2 * 301uLL) / 1000uL;
+   return (d2 * 301uL) / 1000uL;
 }
 
 }}} // namespaces

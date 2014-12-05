@@ -2260,10 +2260,10 @@ public:
    {
       return -(max)();
    }
-   BOOST_STATIC_CONSTEXPR long long digits = static_cast<long long>((Digits10 * 1000LL) / 301LL + ((Digits10 * 1000LL) % 301LL ? 2 : 1));
+   BOOST_STATIC_CONSTEXPR int digits = static_cast<int>((Digits10 * 1000L) / 301L + ((Digits10 * 1000L) % 301L ? 2 : 1));
    BOOST_STATIC_CONSTEXPR int digits10 = Digits10;
    // Have to allow for a possible extra limb inside the gmp data structure:
-   BOOST_STATIC_CONSTEXPR int max_digits10 = Digits10 + 2 + static_cast<int>((GMP_LIMB_BITS * 301LL) / 1000LL);
+   BOOST_STATIC_CONSTEXPR int max_digits10 = Digits10 + 2 + ((GMP_LIMB_BITS * 301L) / 1000L);
    BOOST_STATIC_CONSTEXPR bool is_signed = true;
    BOOST_STATIC_CONSTEXPR bool is_integer = false;
    BOOST_STATIC_CONSTEXPR bool is_exact = false;
