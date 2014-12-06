@@ -27,12 +27,11 @@ namespace pi { namespace millions { namespace detail {
 
 struct outfile_parameters
 {
-  static const std::size_t  number_of_digits_extra_trunc = 10U;
-  static const std::size_t  number_of_digits_per_word    = 10U;
-  static const std::size_t  number_of_words_per_line     = 5U;
-  static const std::size_t  number_of_digits_per_line    = (number_of_digits_per_word * number_of_words_per_line);
-  static const std::size_t  number_of_lines_per_group    = 10U;
-  static const std::int64_t number_of_digits_per_file    = 2000000000LL;
+  static const std::size_t  number_of_digits_extra_trunc = static_cast<std::size_t>(10U);
+  static const std::size_t  number_of_digits_per_column  = static_cast<std::size_t>(10U);
+  static const std::size_t  number_of_columns_per_line   = static_cast<std::size_t>( 5U);
+  static const std::size_t  number_of_digits_per_line    = static_cast<std::size_t>(number_of_digits_per_column * number_of_columns_per_line);
+  static const std::size_t  number_of_lines_per_group    = static_cast<std::size_t>(10U);
 };
 
 // *****************************************************************************
@@ -63,9 +62,13 @@ const float_type& calculate_pi(const bool b_trace)
   {
     is_init = true;
 
-    static const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
+    const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
+
     std::match_results<std::string::const_iterator> mr;
+
     std::stringstream ss;
+    ss.setf(std::ios::scientific);
+    ss.precision(static_cast<std::streamsize>(4));
 
     float_type a (1);
     float_type bB(0.5F);
@@ -74,8 +77,9 @@ const float_type& calculate_pi(const bool b_trace)
 
     // This loop is designed for a maximum of a few billion
     // decimal digits of pi. The index k should reach no higher
-    // than about 25 or 30. After 20 iterations, the precision
-    // is about 1.4 million decimal digits.
+    // than about 25 or 30. The number of digits roughly doubles
+    // with each iteration of the loop. After 20 iterations,
+    // the precision is about 2.8 million decimal digits.
 
     for(unsigned k = 1U; k < 64U; ++k)
     {
@@ -88,37 +92,38 @@ const float_type& calculate_pi(const bool b_trace)
 
       s += iterate_term;
 
-      ss.str(std::string());
+      // Extract the base-10 order of magnitude for a rough estimate of
+      // the number of base-10 digits that have been obtained in this
+      // iteration. Here, we produce a short printout of the iteration
+      // term that is subsequently parsed with a regular expression
+      // for extracting the base-10 order.
 
-      ss << std::scientific << std::setprecision(4) << iterate_term;
+      ss << iterate_term;
 
-      const std::string str(ss.str());
-
-      std::uint64_t approximate_digits_of_pi = (std::regex_match(str, mr, rx) ? boost::lexical_cast<std::uint64_t>(mr[1U])
-                                                                              : UINT64_C(0));
+      const std::uint64_t approximate_digits10_of_iteration_term =
+        (std::regex_match(ss.str(), mr, rx) ? boost::lexical_cast<std::uint64_t>(mr[1U])
+                                            : UINT64_C(0));
 
       if(b_trace)
       {
-        // Extract the base-10 order of magnitude for a rough estimate of
-        // the digits in this iteration of the calculation. Here, we produce
-        // a short printout of the iteration term that is subsequently
-        // parsed with a regular expression for extracting the base-10 order.
-
-          std::cout << "Approximate digits of pi : "
+          std::cout << "Approximate base-10 digits of this iteration : "
                     << std::right
                     << std::setw(12)
-                    << approximate_digits_of_pi
+                    << approximate_digits10_of_iteration_term
                     << '\n';
       }
 
-      // Test the significant digits of the last iteration change.
-      // If it is large enough, then the calculation is finished.
-      if(approximate_digits_of_pi > ((std::numeric_limits<float_type>::digits10 / 2) + 16))
+      // Test the approximate base-10 digits of this iteration term. If we have
+      // attained about half of the total desired digits with this iteration term,
+      // then the calculation is finished.
+      if(approximate_digits10_of_iteration_term > static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16))
       {
         break;
       }
 
       t = (val_pi + bB) / 4U;
+
+      ss.str(std::string());
     }
 
     if(b_trace) { std::cout << "Iteration loop done, compute inverse" << '\n'; }
@@ -225,7 +230,7 @@ bool print_pi()
     return false;
   }
 
-  // Report the time of the pi calculation to the first output file.
+  // Report the time of the pi calculation to the output file.
   static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
 
   // Print the first line of pi in the first file.
@@ -239,7 +244,7 @@ bool print_pi()
     const std::size_t number_of_digits_remaining = str.length() - p;
 
     const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
-                                                                 detail::outfile_parameters::number_of_digits_per_word);
+                                                                 detail::outfile_parameters::number_of_digits_per_column);
 
     output_file << str.substr(p, number_of_digits_in_substring) << " ";
 
@@ -285,7 +290,7 @@ namespace
 {
   struct my_digits_of_pi
   {
-    static const unsigned digits10 = 1000000000U + 1U;
+    static const unsigned digits10 = 1000000U + 1U;
   };
 
   typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,
@@ -295,7 +300,7 @@ namespace
 
 int main()
 {
-  volatile bool print_pi_is_ok = pi::millions::print_pi<float_type>();
+  const bool print_pi_is_ok = pi::millions::print_pi<float_type>();
 
   static_cast<void>(print_pi_is_ok);
 }
