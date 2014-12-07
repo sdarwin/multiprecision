@@ -75,11 +75,12 @@ const float_type& calculate_pi(const bool b_trace)
     float_type s (0.5F);
     float_type t (0.375F);
 
-    // This loop is designed for a maximum of a few billion
-    // decimal digits of pi. The index k should reach no higher
-    // than about 25 or 30. The number of digits roughly doubles
+    // This loop is designed for computing a maximum of a few billion
+    // decimal digits of pi. The number of digits roughly doubles
     // with each iteration of the loop. After 20 iterations,
     // the precision is about 2.8 million decimal digits.
+    // After 29 iterations, the precision is more than one
+    // billion decimal digits.
 
     for(unsigned k = 1U; k < 64U; ++k)
     {
@@ -98,6 +99,8 @@ const float_type& calculate_pi(const bool b_trace)
       // term that is subsequently parsed with a regular expression
       // for extracting the base-10 order.
 
+      // Note: We are only extracting a few digits from iterate_term.
+      // So piping to stringstream is not exorbitantly costly here.
       ss << iterate_term;
 
       const std::uint64_t approximate_digits10_of_iteration_term =
@@ -126,12 +129,18 @@ const float_type& calculate_pi(const bool b_trace)
       ss.str(std::string());
     }
 
-    if(b_trace) { std::cout << "Iteration loop done, compute inverse" << '\n'; }
+    if(b_trace)
+    {
+      std::cout << "Iteration loop done, compute inverse" << '\n';
+    }
 
     val_pi += bB;
     val_pi /= s;
 
-    if(b_trace) { std::cout << "Pi calculation is done." << '\n'; }
+    if(b_trace)
+    {
+      std::cout << "Pi calculation is done." << '\n';
+    }
   }
 
   return val_pi;
