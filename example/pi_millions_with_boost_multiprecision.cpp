@@ -36,20 +36,20 @@ struct outfile_parameters
 
 // *****************************************************************************
 // Function    : template<typename float_type>
-//               const float_type& calculate_pi_template(const bool b_trace)
+//               const float_type& calculate_pi_template(const bool progress_is_printed_to_cout)
 //
 // Description : Compute pi using a quadratically convergent Gauss AGM,
 //               in the Schoenhage variant. For a description of the algorithm,
 //               see the book "Pi Unleashed", as shown in the comments below.
-//               If the input b_trace = true, then the calculation progress
-//               will be output to std::cout.
+//               If the input parameter progress_is_printed_to_cout = true,
+//               then the calculation progress will be printed to std::cout.
 //
 //               Book reference for "Pi Unleashed":
 //               http://www.jjj.de/pibook/pibook.html
 //
 // *****************************************************************************
 template<typename float_type>
-const float_type& calculate_pi(const bool b_trace)
+const float_type& calculate_pi(const bool progress_is_printed_to_cout)
 {
   using std::fabs;
   using std::sqrt;
@@ -107,7 +107,7 @@ const float_type& calculate_pi(const bool b_trace)
         (std::regex_match(ss.str(), mr, rx) ? boost::lexical_cast<std::uint64_t>(mr[1U])
                                             : UINT64_C(0));
 
-      if(b_trace)
+      if(progress_is_printed_to_cout)
       {
           std::cout << "Approximate base-10 digits of this iteration : "
                     << std::right
@@ -129,7 +129,7 @@ const float_type& calculate_pi(const bool b_trace)
       ss.str(std::string());
     }
 
-    if(b_trace)
+    if(progress_is_printed_to_cout)
     {
       std::cout << "Iteration loop done, compute inverse" << '\n';
     }
@@ -137,7 +137,7 @@ const float_type& calculate_pi(const bool b_trace)
     val_pi += bB;
     val_pi /= s;
 
-    if(b_trace)
+    if(progress_is_printed_to_cout)
     {
       std::cout << "Pi calculation is done." << '\n';
     }
