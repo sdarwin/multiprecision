@@ -5,7 +5,7 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 // This program computes millions of digits of pi, in fact
-// up to one billion digits of pi. It uaws Boost.Multiprecision
+// up to one billion digits of pi. It uses Boost.Multiprecision
 // combined with GMP (or MPIR).
 
 #include <algorithm>
@@ -20,6 +20,7 @@
 #include <sstream>
 #include <string>
 
+#include <boost/cstdfloat.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/multiprecision/gmp.hpp>
 
@@ -147,7 +148,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
 }
 
 template<typename float_type>
-std::ostream& report_pi_timing(std::ostream& os, const double elapsed)
+std::ostream& report_pi_timing(std::ostream& os, const boost::float64_t elapsed)
 {
   return os << "============================================================" << '\n'
             << "Computed "
@@ -179,7 +180,7 @@ bool print_pi()
   const std::clock_t stop = std::clock();
 
   // Evaluate the time that was required for the pi calculation.
-  const double elapsed = (static_cast<double>(stop) - static_cast<double>(start) / static_cast<double>(CLOCKS_PER_SEC)) / 1000;
+  const boost::float64_t elapsed = (static_cast<boost::float64_t>(stop) - static_cast<boost::float64_t>(start) / static_cast<boost::float64_t>(CLOCKS_PER_SEC)) / 1000;
 
   // Report the time of the pi calculation to the console.
   static_cast<void>(detail::report_pi_timing<float_type>(std::cout, elapsed));
@@ -232,7 +233,7 @@ bool print_pi()
   bool result_is_ok;
 
   // Verify that the output file is open...
-  // ... and write the result of the pi calculation.
+  // ... and write the result of the pi calculation to it.
   if(output_file.is_open())
   {
     // Report the time of the pi calculation to the output file.
