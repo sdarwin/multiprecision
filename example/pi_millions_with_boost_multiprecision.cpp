@@ -5,7 +5,7 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 // This program computes millions of digits of pi, in fact
-// up to one billion digits of pi, using Boost.Multiprecision
+// up to one billion digits of pi. It uaws Boost.Multiprecision
 // combined with GMP (or MPIR).
 
 #include <algorithm>
@@ -82,7 +82,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
     // After 29 iterations, the precision is more than one
     // billion decimal digits.
 
-    for(unsigned k = 1U; k < 64U; ++k)
+    for(std::uint_least8_t k = 1U; k < 64U; ++k)
     {
       a      += sqrt(bB);
       a      /= 2U;
@@ -175,9 +175,7 @@ bool print_pi()
   // total time of the pi calculation.
 
   const std::clock_t start = std::clock();
-
   detail::calculate_pi<float_type>(true);
-
   const std::clock_t stop = std::clock();
 
   // Evaluate the time that was required for the pi calculation.
@@ -207,8 +205,10 @@ bool print_pi()
 
   // Print pi in the following format.
   //
-  // pi = 3.
-  // 14159.....
+  // Pi = 3.
+  // 1415926535 8979323846 2643383279 5028841971 6939937510  : 50
+  // 5820974944 5923078164 0628620899 8628034825 3421170679  : 100
+  // ...
   //
   // Here, the digits after the decimal point are grouped
   // in sets of digits per line, and the running digit number
@@ -226,71 +226,74 @@ bool print_pi()
     p = 2U;
   }
 
-  // Create a vector of output files and open them.
-  std::ofstream output_file;
+  // Create the output file and open it.
+  std::ofstream output_file("pi.out");
 
-  // Create and open all of the output files.
-  output_file.open("pi.out");
+  bool result_is_ok;
 
-  // Verify that all of the output files are open.
-
-  if(output_file.is_open() == false)
+  // Verify that the output file is open...
+  // ... and write the result of the pi calculation.
+  if(output_file.is_open())
   {
-    return false;
-  }
+    // Report the time of the pi calculation to the output file.
+    static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
 
-  // Report the time of the pi calculation to the output file.
-  static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
+    // Print the first line of pi in the first file.
+    output_file << "Pi = " << str.substr(0, p) << '\n';
 
-  // Print the first line of pi in the first file.
-  output_file << "Pi = " << str.substr(0, p) << '\n';
+    // Extract the digits after the decimal point in a loop.
+    // Insert spaces and newlines in an easy-to-read format.
 
-  // Extract the digits after the decimal point in a loop.
-  // Insert spaces and newlines in an easy-to-read format.
-
-  do
-  {
-    const std::size_t number_of_digits_remaining = str.length() - p;
-
-    const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
-                                                                 detail::outfile_parameters::number_of_digits_per_column);
-
-    output_file << str.substr(p, number_of_digits_in_substring) << " ";
-
-    p += number_of_digits_in_substring;
-
-    const std::string::size_type p2 = p - 2U;
-
-    if((p2 % detail::outfile_parameters::number_of_digits_per_line) == 0U)
+    do
     {
-      // A single line has ended. Print the running digit count
-      // and a newline.
-      output_file << " : " << p2 << '\n';
+      const std::size_t number_of_digits_remaining = str.length() - p;
 
-      if((p2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line)) == 0U)
+      const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
+                                                                   detail::outfile_parameters::number_of_digits_per_column);
+
+      output_file << str.substr(p, number_of_digits_in_substring) << " ";
+
+      p += number_of_digits_in_substring;
+
+      const std::string::size_type p2 = p - 2U;
+
+      if((p2 % detail::outfile_parameters::number_of_digits_per_line) == 0U)
       {
-        // A group of lines has ended.
+        // A single line has ended. Print the running digit count
+        // and a newline.
+        output_file << " : " << p2 << '\n';
 
-        if(p >= (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc))
+        if((p2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line)) == 0U)
         {
-          // The output is finished. Do nothing and break from the loop below.
-          ;
-        }
-        else
-        {
-          // The group of lines is full, but there is still space in the
-          // current file. Simply print a standalone newline character.
-          output_file << '\n';
+          // A group of lines has ended.
+
+          if(p >= (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc))
+          {
+            // The output is finished. Do nothing and break from the loop below.
+            ;
+          }
+          else
+          {
+            // The group of lines is full, but there is still more pi
+            // to come. Simply print a standalone newline character.
+            output_file << '\n';
+          }
         }
       }
     }
+    while(p < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+
+    // Close all of the output files.
+    output_file.close();
+
+    result_is_ok = true;
   }
-  while(p < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+  else
+  {
+    result_is_ok = false;
+  }
 
-  // Close all of the output files.
-  output_file.close();
-
-  return true;
+  return result_is_ok;
 }
 
 } } // namespace pi::millions
@@ -299,7 +302,7 @@ namespace
 {
   struct my_digits_of_pi
   {
-    static const unsigned digits10 = 1000000U + 1U;
+    static const std::uint_least32_t digits10 = 1000000U + 1U;
   };
 
   typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,
