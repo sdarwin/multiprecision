@@ -4,9 +4,10 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-// This program computes millions of digits of pi, in fact
-// up to one billion digits of pi. It uses Boost.Multiprecision
-// combined with GMP (or MPIR).
+// This program computes millions of digits of pi.
+// It has been used to compute more than one billion digits of pi.
+// Boost.Multiprecision is combined with GMP (or MPIR) to carry out
+// the calculation of pi.
 
 #include <algorithm>
 #include <cmath>
@@ -28,11 +29,11 @@ namespace pi { namespace millions { namespace detail {
 
 struct outfile_parameters
 {
-  static const std::size_t  number_of_digits_extra_trunc = static_cast<std::size_t>(10U);
-  static const std::size_t  number_of_digits_per_column  = static_cast<std::size_t>(10U);
-  static const std::size_t  number_of_columns_per_line   = static_cast<std::size_t>( 5U);
-  static const std::size_t  number_of_digits_per_line    = static_cast<std::size_t>(number_of_digits_per_column * number_of_columns_per_line);
-  static const std::size_t  number_of_lines_per_group    = static_cast<std::size_t>(10U);
+  static const std::size_t number_of_digits_extra_trunc = static_cast<std::size_t>(10U);
+  static const std::size_t number_of_digits_per_column  = static_cast<std::size_t>(10U);
+  static const std::size_t number_of_columns_per_line   = static_cast<std::size_t>( 5U);
+  static const std::size_t number_of_digits_per_line    = static_cast<std::size_t>(number_of_digits_per_column * number_of_columns_per_line);
+  static const std::size_t number_of_lines_per_group    = static_cast<std::size_t>(10U);
 };
 
 // *****************************************************************************
@@ -71,7 +72,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
     ss.setf(std::ios::scientific);
     ss.precision(static_cast<std::streamsize>(4));
 
-    float_type a (1);
+    float_type a (1.0F);
     float_type bB(0.5F);
     float_type s (0.5F);
     float_type t (0.375F);
@@ -83,14 +84,14 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
     // After 29 iterations, the precision is more than one
     // billion decimal digits.
 
-    for(std::uint_least8_t k = 1U; k < 64U; ++k)
+    for(std::uint_least8_t k = UINT8_C(1); k < UINT8_C(64); ++k)
     {
       a      += sqrt(bB);
       a      /= 2U;
       val_pi  = (a * a);
       bB      = (val_pi - t) * 2U;
 
-      const float_type iterate_term((bB - val_pi) * (1ULL << k));
+      const float_type iterate_term((bB - val_pi) * (UINT64_C(1) << k));
 
       s += iterate_term;
 
@@ -117,9 +118,11 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
                     << '\n';
       }
 
-      // Test the approximate base-10 digits of this iteration term. If we have
-      // attained about half of the total desired digits with this iteration term,
-      // then the calculation is finished.
+      // Test the approximate base-10 digits of this iteration term.
+      // If we have attained about half of the total desired digits
+      // with this iteration term, then the calculation is finished
+      // because the change from the next iteration will be
+      // insignificantly small.
       if(approximate_digits10_of_iteration_term > static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16))
       {
         break;
@@ -216,82 +219,85 @@ bool print_pi()
   // is reported at the end of each line. The digit grouping
   // is defined with parameters listed above.
 
-  std::string::size_type p;
+  bool result_is_ok = false;
 
-  if(((p = str.find('3')) != 0U) || ((p = str.find('.')) != 1U))
+  const std::string::size_type p_find_three = str.find('3');
+  const std::string::size_type p_find_dot   = str.find('.');
+
+  if(  (p_find_three == static_cast<std::string::size_type>(0U))
+     &&(p_find_dot   == static_cast<std::string::size_type>(1U)))
   {
-    return false;
-  }
-  else
-  {
-    p = 2U;
-  }
+    std::string::size_type p = 2U;
 
-  // Create the output file and open it.
-  std::ofstream output_file("pi.out");
+    // Create the output file and open it.
+    std::ofstream output_file("pi.out");
 
-  bool result_is_ok;
-
-  // Verify that the output file is open...
-  // ... and write the result of the pi calculation to it.
-  if(output_file.is_open())
-  {
-    // Report the time of the pi calculation to the output file.
-    static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
-
-    // Print the first line of pi in the first file.
-    output_file << "Pi = " << str.substr(0, p) << '\n';
-
-    // Extract the digits after the decimal point in a loop.
-    // Insert spaces and newlines in an easy-to-read format.
-
-    do
+    // Verify that the output file is open...
+    // ... and write the result of the pi calculation to it.
+    if(output_file.is_open())
     {
-      const std::size_t number_of_digits_remaining = str.length() - p;
+      // Report the time of the pi calculation to the output file.
+      static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
 
-      const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
-                                                                   detail::outfile_parameters::number_of_digits_per_column);
+      // Print the first line of pi in the first file.
+      output_file << "Pi = " << str.substr(0U, p) << '\n';
 
-      output_file << str.substr(p, number_of_digits_in_substring) << " ";
+      // Extract the digits after the decimal point in a loop.
+      // Insert spaces and newlines in an easy-to-read format.
 
-      p += number_of_digits_in_substring;
-
-      const std::string::size_type p2 = p - 2U;
-
-      if((p2 % detail::outfile_parameters::number_of_digits_per_line) == 0U)
+      do
       {
-        // A single line has ended. Print the running digit count
-        // and a newline.
-        output_file << " : " << p2 << '\n';
+        const std::size_t number_of_digits_remaining = static_cast<std::size_t>(str.length() - p);
 
-        if((p2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line)) == 0U)
+        const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
+                                                                     detail::outfile_parameters::number_of_digits_per_column);
+
+        output_file << str.substr(p, number_of_digits_in_substring) << " ";
+
+        p += number_of_digits_in_substring;
+
+        const std::string::size_type p2 = p - 2U;
+
+        const bool a_single_line_has_ended = (static_cast<std::size_t>(p2 % detail::outfile_parameters::number_of_digits_per_line) == static_cast<std::size_t>(0U));
+
+        if(a_single_line_has_ended)
         {
-          // A group of lines has ended.
+          // A single line has ended.
+          // Print the running digit count and a newline.
+          output_file << " : " << p2 << '\n';
 
-          if(p >= (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc))
+          const std::size_t number_of_lines_remaining_in_group =
+            static_cast<std::size_t>(p2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line));
+
+          if(number_of_lines_remaining_in_group == static_cast<std::size_t>(0U))
           {
-            // The output is finished. Do nothing and break from the loop below.
-            ;
-          }
-          else
-          {
-            // The group of lines is full, but there is still more pi
-            // to come. Simply print a standalone newline character.
-            output_file << '\n';
+            // A group of lines has ended.
+
+            const bool the_output_is_finished = (p >= static_cast<std::string::size_type>(str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+
+            if(the_output_is_finished)
+            {
+              // The output is finished.
+              // Do nothing and break from the loop below.
+              ;
+            }
+            else
+            {
+              // The group of lines is full, but there is still more pi to come.
+              // Simply print a standalone newline character.
+              output_file << '\n';
+            }
           }
         }
       }
+      while(p < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+
+      // Close the output file.
+      output_file.close();
+
+      // Indicate that the result is OK.
+      result_is_ok = true;
     }
-    while(p < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
-
-    // Close all of the output files.
-    output_file.close();
-
-    result_is_ok = true;
-  }
-  else
-  {
-    result_is_ok = false;
   }
 
   return result_is_ok;
