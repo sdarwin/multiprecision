@@ -123,7 +123,9 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
       // with this iteration term, then the calculation is finished
       // because the change from the next iteration will be
       // insignificantly small.
-      if(approximate_digits10_of_iteration_term > static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16))
+      const std::uint64_t digits10_iteration_goal = static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16);
+
+      if(approximate_digits10_of_iteration_term > digits10_iteration_goal)
       {
         break;
       }
@@ -135,7 +137,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
 
     if(progress_is_printed_to_cout)
     {
-      std::cout << "Iteration loop done, compute inverse" << '\n';
+      std::cout << "The iteration loop is done, compute the inverse" << '\n';
     }
 
     val_pi += bB;
@@ -143,7 +145,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
 
     if(progress_is_printed_to_cout)
     {
-      std::cout << "Pi calculation is done." << '\n';
+      std::cout << "The pi calculation is done." << '\n';
     }
   }
 
@@ -221,13 +223,13 @@ bool print_pi()
 
   bool result_is_ok = false;
 
-  const std::string::size_type p_find_three = str.find('3');
-  const std::string::size_type p_find_dot   = str.find('.');
+  const std::string::size_type pos_find_three = str.find('3');
+  const std::string::size_type pos_find_dot   = str.find('.');
 
-  if(  (p_find_three == static_cast<std::string::size_type>(0U))
-     &&(p_find_dot   == static_cast<std::string::size_type>(1U)))
+  if(  (pos_find_three == static_cast<std::string::size_type>(0U))
+     &&(pos_find_dot   == static_cast<std::string::size_type>(1U)))
   {
-    std::string::size_type p = 2U;
+    std::string::size_type pos = 2U;
 
     // Create the output file and open it.
     std::ofstream output_file("pi.out");
@@ -240,40 +242,40 @@ bool print_pi()
       static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
 
       // Print the first line of pi in the first file.
-      output_file << "Pi = " << str.substr(0U, p) << '\n';
+      output_file << "Pi = " << str.substr(0U, pos) << '\n';
 
       // Extract the digits after the decimal point in a loop.
       // Insert spaces and newlines in an easy-to-read format.
 
       do
       {
-        const std::size_t number_of_digits_remaining = static_cast<std::size_t>(str.length() - p);
+        const std::size_t number_of_digits_remaining = static_cast<std::size_t>(str.length() - pos);
 
         const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
                                                                      detail::outfile_parameters::number_of_digits_per_column);
 
-        output_file << str.substr(p, number_of_digits_in_substring) << " ";
+        output_file << str.substr(pos, number_of_digits_in_substring) << " ";
 
-        p += number_of_digits_in_substring;
+        pos += number_of_digits_in_substring;
 
-        const std::string::size_type p2 = p - 2U;
+        const std::string::size_type pos2 = pos - 2U;
 
-        const bool a_single_line_has_ended = (static_cast<std::size_t>(p2 % detail::outfile_parameters::number_of_digits_per_line) == static_cast<std::size_t>(0U));
+        const bool a_single_line_has_ended = (static_cast<std::size_t>(pos2 % detail::outfile_parameters::number_of_digits_per_line) == static_cast<std::size_t>(0U));
 
         if(a_single_line_has_ended)
         {
           // A single line has ended.
           // Print the running digit count and a newline.
-          output_file << " : " << p2 << '\n';
+          output_file << " : " << pos2 << '\n';
 
           const std::size_t number_of_lines_remaining_in_group =
-            static_cast<std::size_t>(p2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line));
+            static_cast<std::size_t>(pos2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line));
 
           if(number_of_lines_remaining_in_group == static_cast<std::size_t>(0U))
           {
             // A group of lines has ended.
 
-            const bool the_output_is_finished = (p >= static_cast<std::string::size_type>(str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+            const bool the_output_is_finished = (pos >= static_cast<std::string::size_type>(str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
 
             if(the_output_is_finished)
             {
@@ -283,14 +285,15 @@ bool print_pi()
             }
             else
             {
-              // The group of lines is full, but there is still more pi to come.
+              // The group of lines is full.
+              // But there is still more pi to come...
               // Simply print a standalone newline character.
               output_file << '\n';
             }
           }
         }
       }
-      while(p < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
+      while(pos < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
 
       // Close the output file.
       output_file.close();
