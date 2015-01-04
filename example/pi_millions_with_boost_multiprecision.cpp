@@ -1,13 +1,13 @@
 
-//          Copyright Christopher Kormanyos 2014.
+//       Copyright Christopher Kormanyos 2014 - 2015.
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-// This program computes millions of digits of pi.
-// It has been used to compute more than one billion digits of pi.
-// Boost.Multiprecision is combined with GMP (or MPIR) to carry out
-// the calculation of pi.
+// This program can be used to compute millions of digits of pi.
+// On fact, it has been used to compute more than one billion
+// decimal digits of pi. Boost.Multiprecision is combined with
+// GMP (or MPIR) in order to carry out the calculation of pi.
 
 #include <algorithm>
 #include <cmath>
@@ -312,7 +312,7 @@ namespace
 {
   struct my_digits_of_pi
   {
-    static const std::uint_least32_t digits10 = 1000000U + 1U;
+    static const std::uint_least32_t digits10 = UINT32_C(1000000) + UINT32_C(1);
   };
 
   typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,
