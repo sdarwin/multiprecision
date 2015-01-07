@@ -548,7 +548,7 @@ struct gmp_float<0> : public detail::gmp_float_imp<0>
    }
    unsigned precision()const BOOST_NOEXCEPT
    {
-      return multiprecision::detail::digits2_2_10(mpf_get_prec(this->m_data));
+      return multiprecision::detail::digits2_2_10(static_cast<unsigned long>(mpf_get_prec(this->m_data)));
    }
    void precision(unsigned digits10) BOOST_NOEXCEPT
    {
@@ -834,7 +834,7 @@ inline void eval_convert_to(long* result, const gmp_float<digits10>& val) BOOST_
       *result *= mpf_sgn(val.data());
    }
    else
-      *result = mpf_get_si(val.data());
+      *result = static_cast<long>(mpf_get_si(val.data()));
 }
 template <unsigned digits10>
 inline void eval_convert_to(double* result, const gmp_float<digits10>& val) BOOST_NOEXCEPT
@@ -869,7 +869,7 @@ inline void eval_convert_to(long long* result, const gmp_float<digits10>& val)
       *result <<= digits;
       digits -= std::numeric_limits<unsigned long>::digits;
       mpf_mul_2exp(t.data(), t.data(), digits >= 0 ? std::numeric_limits<unsigned long>::digits : std::numeric_limits<unsigned long>::digits + digits);
-      unsigned long l = mpf_get_ui(t.data());
+      unsigned long l = static_cast<unsigned long>(mpf_get_ui(t.data()));
       if(digits < 0)
          l >>= -digits;
       *result |= l;
@@ -899,7 +899,7 @@ inline void eval_convert_to(unsigned long long* result, const gmp_float<digits10
       *result <<= digits;
       digits -= std::numeric_limits<unsigned long>::digits;
       mpf_mul_2exp(t.data(), t.data(), digits >= 0 ? std::numeric_limits<unsigned long>::digits : std::numeric_limits<unsigned long>::digits + digits);
-      unsigned long l = mpf_get_ui(t.data());
+      unsigned long l = static_cast<unsigned long>(mpf_get_ui(t.data()));
       if(digits < 0)
          l >>= -digits;
       *result |= l;
@@ -955,15 +955,17 @@ inline void eval_ldexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& v
 template <unsigned Digits10>
 inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& val, int* e)
 {
-   long v;
+   mpir_si v;
    mpf_get_d_2exp(&v, val.data());
-   *e = v;
+   *e = static_cast<int>(v);
    eval_ldexp(result, val, -v);
 }
 template <unsigned Digits10>
 inline void eval_frexp(gmp_float<Digits10>& result, const gmp_float<Digits10>& val, long* e)
 {
-   mpf_get_d_2exp(e, val.data());
+   mpir_si ee;
+   mpf_get_d_2exp(&ee, val.data());
+   *e = static_cast<long>(ee);
    eval_ldexp(result, val, -*e);
 }
 
@@ -1539,7 +1541,7 @@ inline void eval_convert_to(unsigned long* result, const gmp_int& val)
       *result = (std::numeric_limits<unsigned long>::max)();
    }
    else
-      *result = mpz_get_ui(val.data());
+      *result = static_cast<unsigned long>(mpz_get_ui(val.data()));
 }
 inline void eval_convert_to(long* result, const gmp_int& val)
 {
@@ -1549,11 +1551,11 @@ inline void eval_convert_to(long* result, const gmp_int& val)
       *result *= mpz_sgn(val.data());
    }
    else
-      *result = mpz_get_si(val.data());
+      *result = static_cast<long>(mpz_get_si(val.data()));
 }
 inline void eval_convert_to(double* result, const gmp_int& val)
 {
-   *result = mpz_get_d(val.data());
+   *result = static_cast<long>(mpz_get_d(val.data()));
 }
 
 inline void eval_abs(gmp_int& result, const gmp_int& val)
@@ -1606,7 +1608,7 @@ inline unsigned eval_lsb(const gmp_int& val)
    {
       BOOST_THROW_EXCEPTION(std::range_error("Testing individual bits in negative values is not supported - results are undefined."));
    }
-   return mpz_scan1(val.data(), 0);
+   return static_cast<unsigned>(mpz_scan1(val.data(), 0));
 }
 
 inline unsigned eval_msb(const gmp_int& val)
@@ -1620,7 +1622,7 @@ inline unsigned eval_msb(const gmp_int& val)
    {
       BOOST_THROW_EXCEPTION(std::range_error("Testing individual bits in negative values is not supported - results are undefined."));
    }
-   return mpz_sizeinbase(val.data(), 2) - 1;
+   return static_cast<unsigned>(mpz_sizeinbase(val.data(), 2) - 1);
 }
 
 inline bool eval_bit_test(const gmp_int& val, unsigned index)
