@@ -1,9 +1,18 @@
+///////////////////////////////////////////////////////////////////////////////
+//      Copyright Christopher Kormanyos 2012 - 2015.
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include <cmath>
 #include <cstdint>
 #include <functional>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <tuple>
+
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/cbrt.hpp>
 #include <boost/math/special_functions/factorials.hpp>
@@ -58,7 +67,7 @@ public:
                                                                     p1   (other.p1),
                                                                     d2   (other.d2) { }
 
-  ~laguerre_function_object() { }
+  virtual ~laguerre_function_object();
 
   T operator()(const T& x) const
   {
@@ -128,10 +137,13 @@ private:
 };
 
 template<typename T>
-class guass_laguerre_abscissas_and_weights : private boost::noncopyable
+laguerre_function_object<T>::~laguerre_function_object() { }
+
+template<typename T>
+class gauss_laguerre_abscissas_and_weights : private boost::noncopyable
 {
 public:
-  guass_laguerre_abscissas_and_weights(const int n, const T a) : order(n),
+  gauss_laguerre_abscissas_and_weights(const int n, const T a) : order(n),
                                                                  alpha(a),
                                                                  valid(true),
                                                                  xi   (),
@@ -149,7 +161,7 @@ public:
     }
   }
 
-  virtual ~guass_laguerre_abscissas_and_weights() { }
+  virtual ~gauss_laguerre_abscissas_and_weights();
 
   const std::vector<T>& abscissas() const { return xi; }
   const std::vector<T>& weights  () const { return wi; }
@@ -170,11 +182,11 @@ private:
 
     std::cout << "finding approximate roots..." << std::endl;
 
-    std::vector<boost::math::tuple<T, T> > root_estimates;
+    std::vector<std::tuple<T, T> > root_estimates;
 
-    root_estimates.reserve(static_cast<typename std::vector<boost::math::tuple<T, T> >::size_type>(order));
+    root_estimates.reserve(static_cast<typename std::vector<std::tuple<T, T> >::size_type>(order));
 
-    const laguerre_function_object<T> laguerre_object(order, alpha);
+    const laguerre_function_object<T> laguerre_root_object(order, alpha);
 
     // Set the initial values of the step size and the running step
     // to be used for finding the estimate of the first root.
@@ -191,13 +203,13 @@ private:
       // small step-size in order to find a rough estimate of
       // the first zero.
 
-      bool this_laguerre_value_is_negative = (laguerre_object(mp_type(0)) < 0);
+      bool this_laguerre_value_is_negative = (laguerre_root_object(mp_type(0)) < 0);
 
       static const int j_max = 10000;
 
       int j;
 
-      for(j = 0; (j < j_max) && (this_laguerre_value_is_negative != (laguerre_object(step) < 0)); ++j)
+      for(j = 0; (j < j_max) && (this_laguerre_value_is_negative != (laguerre_root_object(step) < 0)); ++j)
       {
         // Increment the step size until the sign of the Laguerre function
         // switches. This indicates a zero-crossing, signalling the next root.
@@ -218,7 +230,7 @@ private:
         // bisection steps in order to tighten up the root bracket.
         boost::uintmax_t a_couple_of_iterations = 3U;
         const std::pair<T, T>
-          first_laguerre_root = boost::math::tools::bisect(laguerre_object,
+          first_laguerre_root = boost::math::tools::bisect(laguerre_root_object,
                                                            step - step_size,
                                                            step,
                                                            laguerre_function_object<T>::root_tolerance,
@@ -270,7 +282,7 @@ private:
 
     if(first_laguerre_root_has_been_found)
     {
-      bool this_laguerre_value_is_negative = (laguerre_object(mp_type(0)) < 0);
+      bool this_laguerre_value_is_negative = (laguerre_root_object(mp_type(0)) < 0);
 
       // Re-set the initial value of the step-size based on the
       // estimate of the first root.
@@ -289,7 +301,7 @@ private:
         // switches. This indicates a zero-crossing, signalling the next root.
         step += step_size;
 
-        if(this_laguerre_value_is_negative != (laguerre_object(step) < 0))
+        if(this_laguerre_value_is_negative != (laguerre_root_object(step) < 0))
         {
           // We have found the next zero-crossing.
 
@@ -304,7 +316,7 @@ private:
           // bisection steps in order to tighten up the root bracket.
           boost::uintmax_t a_couple_of_iterations = 3U;
           const std::pair<T, T>
-            root_estimate_bracket = boost::math::tools::bisect(laguerre_object,
+            root_estimate_bracket = boost::math::tools::bisect(laguerre_root_object,
                                                                step - step_size,
                                                                step,
                                                                laguerre_function_object<T>::root_tolerance,
@@ -313,8 +325,8 @@ private:
           static_cast<void>(a_couple_of_iterations);
 
           // Store the refined root estimate as a bracketed range in a tuple.
-          root_estimates.push_back(boost::math::tuple<T, T>(root_estimate_bracket.first,
-                                                            root_estimate_bracket.second));
+          root_estimates.push_back(std::tuple<T, T>(std::get<0>(root_estimate_bracket),
+                                                    std::get<1>(root_estimate_bracket)));
 
           if(root_estimates.size() >= static_cast<std::size_t>(2U))
           {
@@ -323,11 +335,11 @@ private:
             // are computed by taking the average of the lower and upper range of
             // the root-estimate bracket.
 
-            const T r0 = (  boost::math::get<0>(*(root_estimates.rbegin() + 1U))
-                          + boost::math::get<1>(*(root_estimates.rbegin() + 1U))) / 2;
+            const T r0 = (  std::get<0>(*(root_estimates.rbegin() + 1U))
+                          + std::get<1>(*(root_estimates.rbegin() + 1U))) / 2;
 
-            const T r1 = (  boost::math::get<0>(*root_estimates.rbegin())
-                          + boost::math::get<1>(*root_estimates.rbegin())) / 2;
+            const T r1 = (  std::get<0>(*root_estimates.rbegin())
+                          + std::get<1>(*root_estimates.rbegin())) / 2;
 
             const T distance_between_previous_roots = r1 - r0;
 
@@ -361,9 +373,9 @@ private:
 
         // Perform the root-finding using ACM TOMS 748 from Boost.Math.
         const std::pair<T, T>
-          laguerre_root_bracket = boost::math::tools::toms748_solve(laguerre_object,
-                                                                    boost::math::get<0>(root_estimates[i]),
-                                                                    boost::math::get<1>(root_estimates[i]),
+          laguerre_root_bracket = boost::math::tools::toms748_solve(laguerre_root_object,
+                                                                    std::get<0>(root_estimates[i]),
+                                                                    std::get<1>(root_estimates[i]),
                                                                     laguerre_function_object<T>::root_tolerance,
                                                                     number_of_iterations_used);
 
@@ -373,22 +385,27 @@ private:
 
         // Compute the Laguerre root as the average of the values from
         // the solved root bracket.
-        const T laguerre_root = (  laguerre_root_bracket.first
-                                 + laguerre_root_bracket.second) / 2;
+        const T laguerre_root = (  std::get<0>(laguerre_root_bracket)
+                                 + std::get<1>(laguerre_root_bracket)) / 2;
 
         // Calculate the weight for this Laguerre root. Here, we calculate
         // the derivative of the Laguerre function and the value of the
         // previous Laguerre function on the x-axis at the value of this
         // Laguerre root.
-        static_cast<void>(laguerre_object(laguerre_root));
+        const T laguerre_root_evaluation = laguerre_root_object(laguerre_root);
+
+        static_cast<void>(laguerre_root_evaluation);
 
         // Store the abscissa and weight for this index.
         xi.push_back(laguerre_root);
-        wi.push_back(norm_g / ((laguerre_object.derivative() * order) * laguerre_object.previous()));
+        wi.push_back(norm_g / ((laguerre_root_object.derivative() * order) * laguerre_root_object.previous()));
       }
     }
   }
 };
+
+template<typename T>
+gauss_laguerre_abscissas_and_weights<T>::~gauss_laguerre_abscissas_and_weights() { }
 
 namespace
 {
@@ -440,7 +457,7 @@ namespace
     static const float digits_factor  = static_cast<float>(std::numeric_limits<mp_type>::digits10) / 300.0F;
     static const int   laguerre_order = static_cast<int>(600.0F * digits_factor);
 
-    static const guass_laguerre_abscissas_and_weights<T> abscissas_and_weights(laguerre_order, -T(1) / 6);
+    static const gauss_laguerre_abscissas_and_weights<T> abscissas_and_weights(laguerre_order, -T(1) / 6);
 
     T airy_ai_result;
 
