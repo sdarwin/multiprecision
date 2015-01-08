@@ -51,7 +51,7 @@ struct outfile_parameters
 //
 // *****************************************************************************
 template<typename float_type>
-const float_type& calculate_pi(const bool progress_is_printed_to_cout)
+const float_type& pi(const bool progress_is_printed_to_cout = false)
 {
   using std::fabs;
   using std::sqrt;
@@ -102,7 +102,7 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
       // for extracting the base-10 order.
 
       // Note: We are only extracting a few digits from iterate_term.
-      // So piping to stringstream is not exorbitantly costly here.
+      // So piping it to a stringstream is not exorbitantly costly here.
       ss << iterate_term;
 
       const std::uint64_t approximate_digits10_of_iteration_term =
@@ -111,11 +111,11 @@ const float_type& calculate_pi(const bool progress_is_printed_to_cout)
 
       if(progress_is_printed_to_cout)
       {
-          std::cout << "Approximate base-10 digits of this iteration : "
-                    << std::right
-                    << std::setw(12)
-                    << approximate_digits10_of_iteration_term
-                    << '\n';
+        std::cout << "Approximate base-10 digits of this iteration : "
+                  << std::right
+                  << std::setw(12)
+                  << approximate_digits10_of_iteration_term
+                  << '\n';
       }
 
       // Test the approximate base-10 digits of this iteration term.
@@ -181,11 +181,14 @@ bool print_pi()
   // total time of the pi calculation.
 
   const std::clock_t start = std::clock();
-  detail::calculate_pi<float_type>(true);
+  detail::pi<float_type>(true);
   const std::clock_t stop = std::clock();
 
   // Evaluate the time that was required for the pi calculation.
-  const boost::float64_t elapsed = (static_cast<boost::float64_t>(stop) - static_cast<boost::float64_t>(start) / static_cast<boost::float64_t>(CLOCKS_PER_SEC)) / 1000;
+  const boost::float64_t elapsed = (  static_cast<boost::float64_t>(stop)
+                                    - static_cast<boost::float64_t>(start)
+                                   )
+                                   / static_cast<boost::float64_t>(CLOCKS_PER_SEC);
 
   // Report the time of the pi calculation to the console.
   static_cast<void>(detail::report_pi_timing<float_type>(std::cout, elapsed));
@@ -199,7 +202,8 @@ bool print_pi()
   const std::streamsize precision_to_print =   static_cast<std::streamsize>(std::numeric_limits<float_type>::digits10)
                                              + static_cast<std::streamsize>(detail::outfile_parameters::number_of_digits_extra_trunc);
 
-  ss << std::setprecision(precision_to_print) << detail::calculate_pi<float_type>(false);
+  ss << std::setprecision(precision_to_print)
+     << detail::pi<float_type>();
 
   // Extract the string value of pi.
   std::string str = ss.str();
@@ -217,7 +221,7 @@ bool print_pi()
   // ...
   //
   // Here, the digits after the decimal point are grouped
-  // in sets of digits per line, and the running digit number
+  // in sets of digits per line. The running digit number
   // is reported at the end of each line. The digit grouping
   // is defined with parameters listed above.
 
