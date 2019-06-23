@@ -19,22 +19,11 @@
 #include <limits>
 #include <regex>
 #include <sstream>
-#include <string>
 
-#include <boost/cstdfloat.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/multiprecision/gmp.hpp>
 
 namespace pi { namespace millions { namespace detail {
-
-struct outfile_parameters
-{
-  static const std::size_t number_of_digits_extra_trunc = static_cast<std::size_t>(10U);
-  static const std::size_t number_of_digits_per_column  = static_cast<std::size_t>(10U);
-  static const std::size_t number_of_columns_per_line   = static_cast<std::size_t>( 5U);
-  static const std::size_t number_of_digits_per_line    = static_cast<std::size_t>(number_of_digits_per_column * number_of_columns_per_line);
-  static const std::size_t number_of_lines_per_group    = static_cast<std::size_t>(10U);
-};
 
 // *****************************************************************************
 // Function    : template<typename float_type>
@@ -53,10 +42,7 @@ struct outfile_parameters
 template<typename float_type>
 const float_type& pi(const bool progress_is_printed_to_cout = false)
 {
-  using std::fabs;
-  using std::sqrt;
-
-  static bool is_init = false;
+  static bool is_init;
 
   static float_type val_pi;
 
@@ -64,7 +50,7 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
   {
     is_init = true;
 
-    const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
+    static const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
 
     std::match_results<std::string::const_iterator> mr;
 
@@ -84,11 +70,14 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
     // After 29 iterations, the precision is more than one
     // billion decimal digits.
 
-    for(std::uint_least8_t k = UINT8_C(1); k < UINT8_C(64); ++k)
+    for(std::uint_least16_t k = UINT8_C(1); k < UINT8_C(64); ++k)
     {
+      using std::sqrt;
+
       a      += sqrt(bB);
       a      /= 2U;
-      val_pi  = (a * a);
+      val_pi  = a;
+      val_pi *= val_pi;
       bB      = (val_pi - t) * 2U;
 
       const float_type iterate_term((bB - val_pi) * (UINT64_C(1) << k));
@@ -105,9 +94,14 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
       // So piping it to a stringstream is not exorbitantly costly here.
       ss << iterate_term;
 
+      const std::string str_iterate_term(ss.str());
+
+      const bool is_match =
+        std::regex_match(str_iterate_term, mr, rx);
+
       const std::uint64_t approximate_digits10_of_iteration_term =
-        (std::regex_match(ss.str(), mr, rx) ? boost::lexical_cast<std::uint64_t>(mr[1U])
-                                            : UINT64_C(0));
+        (is_match ? boost::lexical_cast<std::uint64_t>(mr[1U])
+                  : UINT64_C(0));
 
       if(progress_is_printed_to_cout)
       {
@@ -123,14 +117,17 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
       // with this iteration term, then the calculation is finished
       // because the change from the next iteration will be
       // insignificantly small.
-      const std::uint64_t digits10_iteration_goal = static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16);
+      const std::uint64_t digits10_iteration_goal =
+        static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16);
 
       if(approximate_digits10_of_iteration_term > digits10_iteration_goal)
       {
         break;
       }
 
-      t = (val_pi + bB) / 4U;
+      t  = val_pi;
+      t += bB;
+      t /= 4U;
 
       ss.str(std::string());
     }
@@ -153,7 +150,7 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
 }
 
 template<typename float_type>
-std::ostream& report_pi_timing(std::ostream& os, const boost::float64_t elapsed)
+std::ostream& report_pi_timing(std::ostream& os, const float elapsed)
 {
   return os << "============================================================" << '\n'
             << "Computed "
@@ -174,7 +171,7 @@ std::ostream& report_pi_timing(std::ostream& os, const boost::float64_t elapsed)
 namespace pi { namespace millions {
 
 template<typename float_type>
-bool print_pi()
+void print_pi(std::ostream& os)
 {
   // Calculate the value of pi. When doing so, print the calculation
   // messages to the console. Use the clock function to obtain the
@@ -185,13 +182,14 @@ bool print_pi()
   const std::clock_t stop = std::clock();
 
   // Evaluate the time that was required for the pi calculation.
-  const boost::float64_t elapsed = (  static_cast<boost::float64_t>(stop)
-                                    - static_cast<boost::float64_t>(start)
-                                   )
-                                   / static_cast<boost::float64_t>(CLOCKS_PER_SEC);
+  const float elapsed =
+    static_cast<float>(stop - start) / static_cast<float>(CLOCKS_PER_SEC);
 
   // Report the time of the pi calculation to the console.
   static_cast<void>(detail::report_pi_timing<float_type>(std::cout, elapsed));
+
+  // Report the time of the pi calculation to the output stream.
+  static_cast<void>(detail::report_pi_timing<float_type>(os, elapsed));
 
   // Report that we are writing the output file.
   std::cout << "Writing the output file." << '\n';
@@ -199,134 +197,136 @@ bool print_pi()
   // Pipe the value of pi into a stringstream object.
   std::stringstream ss;
 
-  const std::streamsize precision_to_print =   static_cast<std::streamsize>(std::numeric_limits<float_type>::digits10)
-                                             + static_cast<std::streamsize>(detail::outfile_parameters::number_of_digits_extra_trunc);
-
-  ss << std::setprecision(precision_to_print)
+  // Pipe the value of pi into a stringstream object with full precision.
+  ss << std::fixed
+     << std::setprecision(std::numeric_limits<float_type>::digits10 - 1)
      << detail::pi<float_type>();
 
   // Extract the string value of pi.
-  std::string str = ss.str();
+  const std::string str_pi(ss.str());
 
-  while(str.length() < static_cast<std::size_t>(precision_to_print + 1))
+  // Print pi using the following paramater-tunable format.
+
+  // pi = 3.1415926535 8979323846 2643383279 5028841971 6939937510 : 50
+  //        5820974944 5923078164 0628620899 8628034825 3421170679 : 100
+  //        8214808651 3282306647 0938446095 5058223172 5359408128 : 150
+  //        4811174502 8410270193 8521105559 6446229489 5493038196 : 200
+  //        ...
+
+  const char* char_set_separator   = " ";
+  const char* char_group_separator = "\n";
+  //const char* char_set_separator   = "";
+  //const char* char_group_separator = "";
+
+  const std::size_t digits_per_set   = 10U;
+  const std::size_t digits_per_line  = digits_per_set * 5U;
+  const std::size_t digits_per_group = digits_per_line * 10U;
+
+  // The digits after the decimal point are grouped
+  // in sets of digits_per_set with digits_per_line
+  // digits per line. The running-digit count is reported
+  // at the end of each line.
+  
+  // The char_set_separator character string is inserted
+  // between sets of digits. Between groups of lines,
+  // we insert a char_group_separator character string
+  // (which likely might be selected as a newline).
+
+  // For a simple verification of 1,000,000 digits,
+  // for example, go to Wolfram Alpha and ask:
+  //   1000000th digit of Pi.
+  // This prints out 50 digits of pi in the neighborhood
+  // of a million digits, with the millionth digit in bold.
+
+  std::string::size_type pos;
+
+  if(   ((pos = str_pi.find(char('3'), 0U)) != std::string::npos)
+     && ((pos = str_pi.find(char('.'), 1U)) != std::string::npos)
+     && ((pos = str_pi.find(char('1'), 1U)) != std::string::npos))
   {
-    str.push_back(static_cast<char>('0'));
+    ;
+  }
+  else
+  {
+    pos = 0U;
   }
 
-  // Print pi in the following format.
-  //
-  // Pi = 3.
-  // 1415926535 8979323846 2643383279 5028841971 6939937510  : 50
-  // 5820974944 5923078164 0628620899 8628034825 3421170679  : 100
-  // ...
-  //
-  // Here, the digits after the decimal point are grouped
-  // in sets of digits per line. The running digit number
-  // is reported at the end of each line. The digit grouping
-  // is defined with parameters listed above.
+  os << "pi = " << str_pi.substr(0U, pos);
 
-  bool result_is_ok = false;
+  const std::size_t digit_offset = pos;
 
-  const std::string::size_type pos_find_three = str.find('3');
-  const std::string::size_type pos_find_dot   = str.find('.');
+  // Extract the digits after the decimal point in a loop.
+  // Insert spaces, newlines and a running-digit count
+  // in order to create a format for comfortable reading.
 
-  if(  (pos_find_three == static_cast<std::string::size_type>(0U))
-     &&(pos_find_dot   == static_cast<std::string::size_type>(1U)))
+  bool all_output_streaming_is_finished = false;
+
+  while(all_output_streaming_is_finished == false)
   {
-    std::string::size_type pos = 2U;
+    // Print a set of digits (i.e. having 10 digits per set).
+    const std::string str_pi_substring(str_pi.substr(pos, digits_per_set));
 
-    // Create the output file and open it.
-    std::ofstream output_file("pi.out");
+    os << str_pi_substring << char_set_separator;
 
-    // Verify that the output file is open...
-    // ... and write the result of the pi calculation to it.
-    if(output_file.is_open())
+    pos += (std::min)(std::string::size_type(digits_per_set),
+                      str_pi_substring.length());
+
+    const std::size_t number_of_digits(pos - digit_offset);
+
+    // Check if all output streaming is finished.
+    all_output_streaming_is_finished = (pos >= str_pi.length());
+
+    if(all_output_streaming_is_finished)
     {
-      // Report the time of the pi calculation to the output file.
-      static_cast<void>(detail::report_pi_timing<float_type>(output_file, elapsed));
+      // Write the final digit count.
+      // Break from the printing loop.
+      // Flush the output stream with std::endl.
 
-      // Print the first line of pi in the first file.
-      output_file << "Pi = " << str.substr(0U, pos) << '\n';
+      os << ": " << number_of_digits << std::endl;
+    }
+    else
+    {
+      const bool this_line_is_finished =
+        (std::size_t(number_of_digits % digits_per_line) == std::size_t(0U));
 
-      // Extract the digits after the decimal point in a loop.
-      // Insert spaces and newlines in an easy-to-read format.
-
-      do
+      if(this_line_is_finished)
       {
-        const std::size_t number_of_digits_remaining = static_cast<std::size_t>(str.length() - pos);
+        // Print the running-digit count and start a new line.
+        os << ": " << number_of_digits << char('\n');
 
-        const std::size_t number_of_digits_in_substring = (std::min)(number_of_digits_remaining,
-                                                                     detail::outfile_parameters::number_of_digits_per_column);
+        const bool this_group_of_lines_is_finished =
+          (std::size_t(number_of_digits % digits_per_group) == std::size_t(0U));
 
-        output_file << str.substr(pos, number_of_digits_in_substring) << " ";
-
-        pos += number_of_digits_in_substring;
-
-        const std::string::size_type pos2 = pos - 2U;
-
-        const bool a_single_line_has_ended = (static_cast<std::size_t>(pos2 % detail::outfile_parameters::number_of_digits_per_line) == static_cast<std::size_t>(0U));
-
-        if(a_single_line_has_ended)
+        if(this_group_of_lines_is_finished)
         {
-          // A single line has ended.
-          // Print the running digit count and a newline.
-          output_file << " : " << pos2 << '\n';
-
-          const std::size_t number_of_lines_remaining_in_group =
-            static_cast<std::size_t>(pos2 % (detail::outfile_parameters::number_of_lines_per_group * detail::outfile_parameters::number_of_digits_per_line));
-
-          if(number_of_lines_remaining_in_group == static_cast<std::size_t>(0U))
-          {
-            // A group of lines has ended.
-
-            const bool the_output_is_finished = (pos >= static_cast<std::string::size_type>(str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
-
-            if(the_output_is_finished)
-            {
-              // The output is finished.
-              // Do nothing and break from the loop below.
-              ;
-            }
-            else
-            {
-              // The group of lines is full.
-              // But there is still more pi to come...
-              // Simply print a standalone newline character.
-              output_file << '\n';
-            }
-          }
+          // Insert a character (which might be a blank line)
+          // after a group of lines.
+          os << char_group_separator;
         }
+
+        // Insert spaces at the start of the new line.
+        os << "       ";
       }
-      while(pos < (str.length() - detail::outfile_parameters::number_of_digits_extra_trunc));
-
-      // Close the output file.
-      output_file.close();
-
-      // Indicate that the result is OK.
-      result_is_ok = true;
     }
   }
-
-  return result_is_ok;
 }
 
 } } // namespace pi::millions
 
-namespace
-{
-  struct my_digits_of_pi
-  {
-    static const std::uint_least32_t digits10 = UINT32_C(1000000) + UINT32_C(1);
-  };
-
-  typedef boost::multiprecision::number<boost::multiprecision::gmp_float<my_digits_of_pi::digits10>,
-                                        boost::multiprecision::et_on>
-  float_type;
-}
-
 int main()
 {
-  const bool print_pi_is_ok = pi::millions::print_pi<float_type>();
+  using float_type =
+    boost::multiprecision::number<boost::multiprecision::gmp_float<1000001UL>,
+                                  boost::multiprecision::et_off>;
 
-  static_cast<void>(print_pi_is_ok);
+  std::ofstream out("pi.out");
+
+  if(out.is_open())
+  {
+    pi::millions::print_pi<float_type>(out);
+
+    out.close();
+  }
+
+  return 0;
 }
