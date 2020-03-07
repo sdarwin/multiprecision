@@ -751,8 +751,11 @@ int main()
   #elif defined BOOST_MANDELBROT_08_DEEP_DIVE_01
 
     // This is a deep zoom image.
-    // See also http://colinlmiller.com/fractals/gallery.htm
     // Note: Use 128 decimal digits for this iteration.
+
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 128,
+                  "Error: Please use 80 or more decimal digits for deep dive 01.");
+
     using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(800), -366>;
 
     const numeric_type delta("+1.16E-107");
@@ -766,12 +769,15 @@ int main()
   #elif defined BOOST_MANDELBROT_09_DEEP_DIVE_02
 
     // This is a deep zoom image.
-    // See also http://colinlmiller.com/fractals/gallery.htm
     // Note: Use 80 decimal digits for this iteration.
+
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 80,
+                  "Error: Please use 80 or more decimal digits for deep dive 02.");
+
     using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(10000), -192>;
 
-    const numeric_type delta("+1.7E-55");
-    const numeric_type cx   (numeric_type("-1.295189082147777457017064177185681926706566460884888469217455") + numeric_type("0.0E-54"));
+    const numeric_type delta("+1.78E-55");
+    const numeric_type cx   (numeric_type("-1.295189082147777457017064177185681926706566460884888469217455"));
     const numeric_type cy   (numeric_type("+0.440936982678320138880903678356262612113214627431396203682665"));
 
     const mandelbrot_config_type
