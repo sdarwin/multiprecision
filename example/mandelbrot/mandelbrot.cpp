@@ -1,3 +1,30 @@
+///////////////////////////////////////////////////////////////////////////////
+//      Copyright Christopher Kormanyos 2015 - 2017, 2020.
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+//
+
+// This example uses Boost.Multiprecision to implement
+// a high-precision Mandelbrot iteration and visualization.
+// Visualization uses JPEG wrapped with BoosGil (old).
+// Color strething and the histogram method are used.
+
+// TBD: The entire multitasking needs a full rework.
+// Use something like a parallel-for scheduler to
+// reduce the number of redundant subroutines and
+// also to properly scale to the number of cores.
+
+// TBD: The color stretching and histogram methods
+// should be investigated and possibly refactored
+// because they are programmed in a non-intuitive way
+// that is difficult to understand.
+
+// TBD: At the moment, a single color scheme is used.
+// It is implemented in three individual "color"
+// lambda functions. This is something that would
+// benefit from some kind of configuration-ability.
+// Can we use user-supplied RGB color functions?
 
 #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
@@ -53,8 +80,27 @@ public:
 
   virtual const mandelbrot_config_numeric_type& step() const = 0;
 
-  virtual std::uint_fast32_t width () const = 0;
-  virtual std::uint_fast32_t height() const = 0;
+  std::uint_fast32_t width() const
+  {
+    const std::uint_fast32_t non_justified_width =
+      static_cast<std::uint_fast32_t>((this->x_hi() - this->x_lo()) / step());
+
+    const std::uint_fast32_t justified_width =
+      non_justified_width + (4U - (non_justified_width % 4));
+
+    return justified_width;
+  }
+
+  std::uint_fast32_t height() const
+  {
+    const std::uint_fast32_t non_justified_height =
+      static_cast<std::uint_fast32_t>((this->y_hi() - this->y_lo()) / step());
+
+    const std::uint_fast32_t justified_height =
+      non_justified_height + (4U - (non_justified_height % 4));
+
+    return justified_height;
+  }
 
 protected:
   const mandelbrot_config_numeric_type my_x_lo;
@@ -135,41 +181,19 @@ public:
   {
     using std::ldexp;
 
-    my_step = ldexp(NumericType(1U), MandelbrotFractionalResolution);
+    my_step = ldexp(typename base_class_type::mandelbrot_config_numeric_type(1U), MandelbrotFractionalResolution);
   }
 
   virtual ~mandelbrot_config() { }
 
 private:
-  NumericType my_step;
+  typename base_class_type::mandelbrot_config_numeric_type my_step;
 
   virtual std::uint_fast32_t max_iterations() const { return MaxIterations; }
 
   virtual int mandelbrot_fractional_resolution() const { return MandelbrotFractionalResolution; }
 
-  virtual const NumericType& step() const { return my_step; }
-
-  virtual std::uint_fast32_t width() const
-  {
-    const std::uint_fast32_t non_justified_width =
-      static_cast<std::uint_fast32_t>((this->x_hi() - this->x_lo()) / step());
-
-    const std::uint_fast32_t justified_width =
-      non_justified_width + (4U - (non_justified_width % 4));
-
-    return justified_width;
-  }
-
-  virtual std::uint_fast32_t height() const
-  {
-    const std::uint_fast32_t non_justified_height =
-      static_cast<std::uint_fast32_t>((this->y_hi() - this->y_lo()) / step());
-
-    const std::uint_fast32_t justified_height =
-      non_justified_height + (4U - (non_justified_height % 4));
-
-    return justified_height;
-  }
+  virtual const typename base_class_type::mandelbrot_config_numeric_type& step() const { return my_step; }
 };
 
 class mandelbrot_inner_loop_object_base
@@ -443,17 +467,17 @@ class mandelbrot_generator
 {
 public:
   mandelbrot_generator(const mandelbrot_config_base<NumericType>& config)
-    : mandelbrot_config_object(config),
-      mandelbrot_image               (config.width(), config.height()),
-      mandelbrot_view                (boost::gil::rgb8_view_t()),
-      mandelbrot_iteration_matrix    (mandelbrot_config_object.width(),
-                                      std::vector<std::uint_fast32_t>(mandelbrot_config_object.height())),
-      mandelbrot_color_histogram     (static_cast<std::size_t>(config.max_iterations()) + 1U, UINT32_C(0))
+    : mandelbrot_config_object   (config),
+      mandelbrot_image           (config.width(), config.height()),
+      mandelbrot_view            (boost::gil::rgb8_view_t()),
+      mandelbrot_iteration_matrix(mandelbrot_config_object.width(),
+                                  std::vector<std::uint_fast32_t>(mandelbrot_config_object.height())),
+      mandelbrot_color_histogram (static_cast<std::size_t>(config.max_iterations()) + 1U, UINT32_C(0))
   {
     mandelbrot_view = boost::gil::view(mandelbrot_image);
   }
 
-  ~mandelbrot_generator() { }
+  ~mandelbrot_generator() = default;
 
   void generate_mandelbrot_image()
   {
@@ -476,39 +500,34 @@ public:
 
     // Initialize the y-axis coordinate.
     const NumericType y_hi(mandelbrot_config_object.y_hi());
-    const NumericType delta_y0 = y_hi - (0 * xy_step);
-    const NumericType delta_y1 = y_hi - (1 * xy_step);
-    const NumericType delta_y2 = y_hi - (2 * xy_step);
-    const NumericType delta_y3 = y_hi - (3 * xy_step);
-    const volatile std::uint_fast32_t max_iter = mandelbrot_config_object.max_iterations();
 
     std::thread thread_00(local::thread_routine_00<typename std::vector<NumericType>::const_iterator>,
                           x_values.cbegin(),
                           x_values.cend(),
-                          delta_y0,
+                          y_hi - (0 * xy_step),
                           xy_step,
-                          max_iter);
+                          mandelbrot_config_object.max_iterations());
 
     std::thread thread_01(local::thread_routine_01<typename std::vector<NumericType>::const_iterator>,
                           x_values.cbegin(),
                           x_values.cend(),
-                          delta_y1,
+                          y_hi - (1 * xy_step),
                           xy_step,
-                          max_iter);
+                          mandelbrot_config_object.max_iterations());
 
     std::thread thread_02(local::thread_routine_02<typename std::vector<NumericType>::const_iterator>,
                           x_values.cbegin(),
                           x_values.cend(),
-                          delta_y2,
+                          y_hi - (2 * xy_step),
                           xy_step,
-                          max_iter);
+                          mandelbrot_config_object.max_iterations());
 
     std::thread thread_03(local::thread_routine_03<typename std::vector<NumericType>::const_iterator>,
                           x_values.cbegin(),
                           x_values.cend(),
-                          delta_y3,
+                          y_hi - (3 * xy_step),
                           xy_step,
-                          max_iter);
+                          mandelbrot_config_object.max_iterations());
 
     // Loop through all the rows of pixels on the vertical
     // y-axis in the direction of decreasing y-value.
