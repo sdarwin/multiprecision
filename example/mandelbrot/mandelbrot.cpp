@@ -536,8 +536,6 @@ public:
         {
           break;
         }
-
-        std::this_thread::sleep_for(std::chrono::microseconds(3U));
       }
 
       for(std::size_t col = 0U; col < x_values.size(); ++col)
@@ -690,8 +688,8 @@ int main()
 
   #if defined BOOST_MANDELBROT_01_FULL
 
-    // This is the classic full immage rendered in aqua tones (and black).
-    using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(2000), -9>;
+    // This is the classic full immage from (-2.0, -1.0) ... (05, 1.0).
+    using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(2000), -10>;
 
     const mandelbrot_config_type mandelbrot_config_object(-2.000L, +0.500L,
                                                           -1.000L, +1.000L);
@@ -720,16 +718,6 @@ int main()
     const mandelbrot_config_type
       mandelbrot_config_object(-0.7453983606668L - 1.72E-12L, -0.7453983606668L + 1.72E-12L,
                                +0.1125046349960L - 1.72E-12L, +0.1125046349960L + 1.72E-12L);
-
-//      mandelbrot_config_object("-0.74539836067085", "-0.74539836066275",
-//                               "+0.11250463499195", "+0.11250463500005");
-
-//      mandelbrot_config_object(-0.7453983606668L - 1.42E-12L, -0.7453983606668L + 1.42E-12L,
-//                               +0.1125046349960L - 1.42E-12L, +0.1125046349960L + 1.42E-12L);
-
-// OLD:
-//     mandelbrot_config_object("-0.7453983606795", "-0.7453983606545",
-//                              "+0.1125046349835", "+0.1125046350085");
 
   #elif defined BOOST_MANDELBROT_06_BRANCHES
 
@@ -774,7 +762,7 @@ int main()
     static_assert(std::numeric_limits<numeric_type>::digits10 >= 80,
                   "Error: Please use 80 or more decimal digits for deep dive 02.");
 
-    using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(10000), -192>;
+    using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(8000), -192>;
 
     const numeric_type delta("+1.78E-55");
     const numeric_type cx   (numeric_type("-1.295189082147777457017064177185681926706566460884888469217455"));
