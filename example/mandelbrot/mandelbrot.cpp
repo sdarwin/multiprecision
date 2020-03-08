@@ -7,8 +7,9 @@
 
 // This example uses Boost.Multiprecision to implement
 // a high-precision Mandelbrot iteration and visualization.
-// Visualization uses JPEG wrapped with BoosGil (old).
-// Color strething and the histogram method are used.
+// Graphic file creation uses Boost.Gil-old to wrap JPEG.
+// Color-strething in combination with the histogram method
+// are used for creating vivid landscapes.
 
 // TBD: The entire multitasking needs a full rework.
 // Use something like a parallel-for scheduler to
