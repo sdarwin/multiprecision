@@ -9,17 +9,12 @@
 // a high-precision Mandelbrot iteration and visualization.
 // Graphic file creation uses Boost.Gil-old to wrap JPEG.
 // Color-strething in combination with the histogram method
-// are used for creating vivid landscapes.
-
-// TBD: The entire multitasking needs a full rework.
-// Use something like a parallel-for scheduler to
-// reduce the number of redundant subroutines and
-// also to properly scale to the number of cores.
+// is used for creating vivid landscapes.
 
 // TBD: The color stretching and histogram methods
-// should be investigated and possibly refactored
-// because they are programmed in a non-intuitive way
-// that is difficult to understand.
+// should be investigated and possibly refactored.
+// At the moment, they are programmed in a non-intuitive
+// way that is difficult to understand.
 
 // TBD: At the moment, a single color scheme is used.
 // It is implemented in three individual "color"
@@ -61,11 +56,80 @@
 //#define BOOST_MANDELBROT_08_DEEP_DIVE_01
 //#define BOOST_MANDELBROT_09_DEEP_DIVE_02
 
+namespace my_concurrency
+{
+  template<typename index_type,
+            typename callable_function_type>
+  void parallel_for(index_type             start,
+                    index_type             end,
+                    callable_function_type parallel_function)
+  {
+    // Estimate the number of threads available.
+    static const unsigned int number_of_threads_hint =
+      std::thread::hardware_concurrency();
+
+    static const unsigned int number_of_threads =
+      ((number_of_threads_hint == 0U) ? 4U : number_of_threads_hint);
+
+    // Set the size of a slice for the range functions.
+    index_type n = index_type(end - start) + index_type(1);
+
+    index_type slice =
+      static_cast<index_type>(std::round(n / static_cast<double> (number_of_threads)));
+
+    slice = (std::max)(slice, index_type(1));
+
+    // Inner loop.
+    auto launch_range =
+      [&parallel_function](index_type index_lo, index_type index_hi)
+      {
+        for(index_type i = index_lo; i < index_hi; ++i)
+        {
+          parallel_function(i);
+        }
+      };
+
+    // Create the thread pool and launch the jobs.
+    std::vector<std::thread> pool;
+
+    pool.reserve(number_of_threads);
+
+    index_type i1 = start;
+    index_type i2 = (std::min)(index_type(start + slice), end);
+
+    for(index_type i = 0U; ((index_type(i + index_type(1U)) < number_of_threads) && (i1 < end)); ++i)
+    {
+      pool.emplace_back(launch_range, i1, i2);
+
+      i1 = i2;
+
+      i2 = (std::min)(index_type(i2 + slice), end);
+    }
+
+    if(i1 < end)
+    {
+      pool.emplace_back(launch_range, i1, end);
+    }
+
+    // Wait for the jobs to finish.
+    for(std::thread& thread_in_pool : pool)
+    {
+      if(thread_in_pool.joinable())
+      {
+        thread_in_pool.join();
+      }
+    }
+  }
+} // namespace my_concurrency
+
 // Declare a base class for the Mandelbrot configuration.
-template<typename NumericType>
+template<typename NumericType,
+         const std::uint_fast32_t MaxIterations>
 class mandelbrot_config_base
 {
 public:
+  static const std::uint_fast32_t max_iterations = MaxIterations;
+
   typedef NumericType mandelbrot_config_numeric_type;
 
   virtual ~mandelbrot_config_base() { }
@@ -75,8 +139,6 @@ public:
   const mandelbrot_config_numeric_type& y_lo() const { return my_y_lo; }
   const mandelbrot_config_numeric_type& y_hi() const { return my_y_hi; }
 
-  virtual std::uint_fast32_t max_iterations() const = 0;
-
   virtual int mandelbrot_fractional_resolution() const = 0;
 
   virtual const mandelbrot_config_numeric_type& step() const = 0;
@@ -84,23 +146,17 @@ public:
   std::uint_fast32_t width() const
   {
     const std::uint_fast32_t non_justified_width =
-      static_cast<std::uint_fast32_t>((this->x_hi() - this->x_lo()) / step());
+      static_cast<std::uint_fast32_t>((my_x_hi - my_x_lo) / this->step());
 
-    const std::uint_fast32_t justified_width =
-      non_justified_width + (4U - (non_justified_width % 4));
-
-    return justified_width;
+    return non_justified_width;
   }
 
   std::uint_fast32_t height() const
   {
     const std::uint_fast32_t non_justified_height =
-      static_cast<std::uint_fast32_t>((this->y_hi() - this->y_lo()) / step());
+      static_cast<std::uint_fast32_t>((my_y_hi - my_y_lo) / this->step());
 
-    const std::uint_fast32_t justified_height =
-      non_justified_height + (4U - (non_justified_height % 4));
-
-    return justified_height;
+    return non_justified_height;
   }
 
 protected:
@@ -119,11 +175,10 @@ protected:
       my_y_hi(yh) { }
 
 private:
-  mandelbrot_config_base()
-    : my_x_lo(mandelbrot_config_numeric_type()),
-      my_x_hi(mandelbrot_config_numeric_type()),
-      my_y_lo(mandelbrot_config_numeric_type()),
-      my_y_hi(mandelbrot_config_numeric_type()) { }
+  mandelbrot_config_base() : my_x_lo(),
+                             my_x_hi(),
+                             my_y_lo(),
+                             my_y_hi() { }
 };
 
 // Make a template class that represents the Mandelbrot configuration.
@@ -134,10 +189,10 @@ private:
 template<typename NumericType,
          const std::uint_fast32_t MaxIterations,
          const int MandelbrotFractionalResolution>
-class mandelbrot_config : public mandelbrot_config_base<NumericType>
+class mandelbrot_config : public mandelbrot_config_base<NumericType, MaxIterations>
 {
 private:
-  typedef mandelbrot_config_base<NumericType> base_class_type;
+  typedef mandelbrot_config_base<NumericType, MaxIterations> base_class_type;
 
 public:
   static_assert(MandelbrotFractionalResolution < -1,
@@ -190,290 +245,29 @@ public:
 private:
   typename base_class_type::mandelbrot_config_numeric_type my_step;
 
-  virtual std::uint_fast32_t max_iterations() const { return MaxIterations; }
-
   virtual int mandelbrot_fractional_resolution() const { return MandelbrotFractionalResolution; }
 
   virtual const typename base_class_type::mandelbrot_config_numeric_type& step() const { return my_step; }
 };
 
-class mandelbrot_inner_loop_object_base
-{
-public:
-  virtual void loop() = 0;
-
-  mandelbrot_inner_loop_object_base(const mandelbrot_inner_loop_object_base&) = default;
-
-  virtual ~mandelbrot_inner_loop_object_base() = default;
-
-  mandelbrot_inner_loop_object_base& operator=(const mandelbrot_inner_loop_object_base&) = default;
-
-  std::uint_fast32_t get_iteration_result() const { return iteration_result; }
-
-protected:
-  const std::uint_fast32_t maximum_iterations;
-  std::uint_fast32_t iteration_result;
-
-  mandelbrot_inner_loop_object_base(const std::uint_fast32_t max_iter)
-    : maximum_iterations(max_iter),
-      iteration_result  (0U) { }
-
-private:
-  mandelbrot_inner_loop_object_base() = delete;
-};
-
-template<typename NumericType>
-class mandelbrot_inner_loop_object final : public mandelbrot_inner_loop_object_base
-{
-public:
-  mandelbrot_inner_loop_object(const std::uint_fast32_t max_iter,
-                               const NumericType& x,
-                               const NumericType& y)
-    : mandelbrot_inner_loop_object_base(max_iter),
-      cr (x),
-      ci (y),
-      zr (0U),
-      zi (0U),
-      zr2(0U),
-      zi2(0U) { }
-
-  mandelbrot_inner_loop_object(const mandelbrot_inner_loop_object&) = default;
-
-  virtual ~mandelbrot_inner_loop_object() = default;
-
-  mandelbrot_inner_loop_object& operator=(const mandelbrot_inner_loop_object&) = default;
-
-  virtual void loop()
-  {
-    // Use an optimized complex-numbered multiplication scheme.
-    // Thereby reduce the main work of the Mandelbrot iteration to
-    // three real-valued multiplications and several real-valued
-    // addition/subtraction operations.
-
-    iteration_result = UINT32_C(0);
-
-    // Perform the iteration sequence for generating the Mandelbrot set.
-    // Here is the main work of the program.
-
-    while((iteration_result < maximum_iterations) && ((zr2 + zi2) < 4))
-    {
-      // Optimized complex multiply and add.
-      zi *= zr;
-
-      zi  = (zi  + zi)  + ci;
-      zr  = (zr2 - zi2) + cr;
-
-      zr2 = zr * zr;
-      zi2 = zi * zi;
-
-      ++iteration_result;
-    }
-  }
-
-private:
-  const NumericType cr;
-  const NumericType ci;
-
-  NumericType zr;
-  NumericType zi;
-
-  NumericType zr2;
-  NumericType zi2;
-
-  mandelbrot_inner_loop_object() = delete;
-};
-
-namespace local
-{
-  std::vector<std::uint_fast32_t> mandelbrot_thread_result_vector_00;
-  std::vector<std::uint_fast32_t> mandelbrot_thread_result_vector_01;
-  std::vector<std::uint_fast32_t> mandelbrot_thread_result_vector_02;
-  std::vector<std::uint_fast32_t> mandelbrot_thread_result_vector_03;
-
-  std::atomic_bool mandelbrot_thread_exit_flag_00;
-  std::atomic_bool mandelbrot_thread_exit_flag_01;
-  std::atomic_bool mandelbrot_thread_exit_flag_02;
-  std::atomic_bool mandelbrot_thread_exit_flag_03;
-
-  std::atomic_bool mandelbrot_thread_do_loop_00;
-  std::atomic_bool mandelbrot_thread_do_loop_01;
-  std::atomic_bool mandelbrot_thread_do_loop_02;
-  std::atomic_bool mandelbrot_thread_do_loop_03;
-
-  template<typename NumericInputIteratorType>
-  static void thread_routine_00(NumericInputIteratorType                                            x_first,
-                                NumericInputIteratorType                                            x_last,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_val_00,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_step_00,
-                                std::uint_fast32_t                                                  max_iter)
-  {
-    typedef typename std::iterator_traits<NumericInputIteratorType>::value_type local_value_type;
-
-    const std::ptrdiff_t x_values_size = std::distance(x_first, x_last);
-
-    mandelbrot_thread_result_vector_00.resize(std::size_t(x_values_size));
-
-    while(std::atomic_load(&mandelbrot_thread_exit_flag_00) == false)
-    {
-      if(std::atomic_load(&mandelbrot_thread_do_loop_00) == true)
-      {
-        std::fill(mandelbrot_thread_result_vector_00.begin(),
-                  mandelbrot_thread_result_vector_00.end(),
-                  std::uint_fast32_t(0U));
-
-        for(std::size_t col = 0U; col < std::size_t(x_values_size); ++col)
-        {
-          mandelbrot_inner_loop_object<local_value_type>
-            my_mandelbrot_inner_loop_object_00(max_iter,
-                                               *(x_first + col),
-                                               y_val_00);
-
-          my_mandelbrot_inner_loop_object_00.loop();
-
-          mandelbrot_thread_result_vector_00[col] = my_mandelbrot_inner_loop_object_00.get_iteration_result();
-        }
-
-        y_val_00 -= 4 * y_step_00;
-
-        std::atomic_store(&mandelbrot_thread_do_loop_00, false);
-      }
-    }
-  }
-
-  template<typename NumericInputIteratorType>
-  static void thread_routine_01(NumericInputIteratorType                                            x_first,
-                                NumericInputIteratorType                                            x_last,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_val_01,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_step_01,
-                                std::uint_fast32_t                                                  max_iter)
-  {
-    typedef typename std::iterator_traits<NumericInputIteratorType>::value_type local_value_type;
-
-    const std::ptrdiff_t x_values_size = std::distance(x_first, x_last);
-
-    mandelbrot_thread_result_vector_01.resize(std::size_t(x_values_size));
-
-    while(std::atomic_load(&mandelbrot_thread_exit_flag_01) == false)
-    {
-      if(std::atomic_load(&mandelbrot_thread_do_loop_01) == true)
-      {
-        std::fill(mandelbrot_thread_result_vector_01.begin(),
-                  mandelbrot_thread_result_vector_01.end(),
-                  std::uint_fast32_t(0U));
-
-        for(std::size_t col = 0U; col < std::size_t(x_values_size); ++col)
-        {
-          mandelbrot_inner_loop_object<local_value_type>
-            my_mandelbrot_inner_loop_object_01(max_iter,
-                                               *(x_first + col),
-                                               y_val_01);
-
-          my_mandelbrot_inner_loop_object_01.loop();
-
-          mandelbrot_thread_result_vector_01[col] = my_mandelbrot_inner_loop_object_01.get_iteration_result();
-        }
-
-        y_val_01 -= 4 * y_step_01;
-
-        std::atomic_store(&mandelbrot_thread_do_loop_01, false);
-      }
-    }
-  }
-
-  template<typename NumericInputIteratorType>
-  static void thread_routine_02(NumericInputIteratorType                                            x_first,
-                                NumericInputIteratorType                                            x_last,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_val_02,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_step_02,
-                                std::uint_fast32_t                                                  max_iter)
-  {
-    typedef typename std::iterator_traits<NumericInputIteratorType>::value_type local_value_type;
-
-    const std::ptrdiff_t x_values_size = std::distance(x_first, x_last);
-
-    mandelbrot_thread_result_vector_02.resize(std::size_t(x_values_size));
-
-    while(std::atomic_load(&mandelbrot_thread_exit_flag_02) == false)
-    {
-      if(std::atomic_load(&mandelbrot_thread_do_loop_02) == true)
-      {
-        std::fill(mandelbrot_thread_result_vector_02.begin(),
-                  mandelbrot_thread_result_vector_02.end(),
-                  std::uint_fast32_t(0U));
-
-        for(std::size_t col = 0U; col < std::size_t(x_values_size); ++col)
-        {
-          mandelbrot_inner_loop_object<local_value_type>
-            my_mandelbrot_inner_loop_object_02(max_iter,
-                                               *(x_first + col),
-                                               y_val_02);
-
-          my_mandelbrot_inner_loop_object_02.loop();
-
-          mandelbrot_thread_result_vector_02[col] = my_mandelbrot_inner_loop_object_02.get_iteration_result();
-        }
-
-        y_val_02 -= 4 * y_step_02;
-
-        std::atomic_store(&mandelbrot_thread_do_loop_02, false);
-      }
-    }
-  }
-
-  template<typename NumericInputIteratorType>
-  static void thread_routine_03(NumericInputIteratorType                                            x_first,
-                                NumericInputIteratorType                                            x_last,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_val_03,
-                                typename std::iterator_traits<NumericInputIteratorType>::value_type y_step_03,
-                                std::uint_fast32_t                                                  max_iter)
-  {
-    typedef typename std::iterator_traits<NumericInputIteratorType>::value_type local_value_type;
-
-    const std::ptrdiff_t x_values_size = std::distance(x_first, x_last);
-
-    mandelbrot_thread_result_vector_03.resize(std::size_t(x_values_size));
-
-    while(std::atomic_load(&mandelbrot_thread_exit_flag_03) == false)
-    {
-      if(std::atomic_load(&mandelbrot_thread_do_loop_03) == true)
-      {
-        std::fill(mandelbrot_thread_result_vector_03.begin(),
-                  mandelbrot_thread_result_vector_03.end(),
-                  std::uint_fast32_t(0U));
-
-        for(std::size_t col = 0U; col < std::size_t(x_values_size); ++col)
-        {
-          mandelbrot_inner_loop_object<local_value_type>
-            my_mandelbrot_inner_loop_object_03(max_iter,
-                                               *(x_first + col),
-                                               y_val_03);
-
-          my_mandelbrot_inner_loop_object_03.loop();
-
-          mandelbrot_thread_result_vector_03[col] = my_mandelbrot_inner_loop_object_03.get_iteration_result();
-        }
-
-        y_val_03 -= 4 * y_step_03;
-
-        std::atomic_store(&mandelbrot_thread_do_loop_03, false);
-      }
-    }
-  }
-} // namespace local
-
 // This class generates the rows of the mandelbrot iteration.
 // The coordinates are set up according to the Mandelbrot configuration.
-template<typename NumericType>
+template<typename NumericType,
+         const std::uint_fast32_t MaxIterations>
 class mandelbrot_generator
 {
 public:
-  mandelbrot_generator(const mandelbrot_config_base<NumericType>& config)
+  static const std::uint_fast32_t max_iterations = MaxIterations;
+
+  using mandelbrot_config_type = mandelbrot_config_base<NumericType, max_iterations>;
+
+  mandelbrot_generator(const mandelbrot_config_type& config)
     : mandelbrot_config_object   (config),
       mandelbrot_image           (config.width(), config.height()),
       mandelbrot_view            (boost::gil::rgb8_view_t()),
       mandelbrot_iteration_matrix(mandelbrot_config_object.width(),
                                   std::vector<std::uint_fast32_t>(mandelbrot_config_object.height())),
-      mandelbrot_color_histogram (static_cast<std::size_t>(config.max_iterations()) + 1U, UINT32_C(0))
+      mandelbrot_color_histogram (max_iterations + 1U, UINT32_C(0))
   {
     mandelbrot_view = boost::gil::view(mandelbrot_image);
   }
@@ -484,124 +278,90 @@ public:
   {
     // Setup the x-axis coordinates.
     std::vector<NumericType> x_values(mandelbrot_config_object.width());
+    std::vector<NumericType> y_values(mandelbrot_config_object.height());
 
     const NumericType xy_step(mandelbrot_config_object.step());
 
+    // Initialize the x-axis and y-axis coordinates one time only.
+    NumericType x_coord(mandelbrot_config_object.x_lo());
+    NumericType y_coord(mandelbrot_config_object.y_hi());
+
+    for(std::size_t j_col = 0U; j_col < x_values.size(); ++j_col)
     {
-      // Initialize the x-axis coordinates (one time only).
-      NumericType x_coord(mandelbrot_config_object.x_lo());
+      x_values[j_col] = x_coord;
 
-      for(NumericType& x : x_values)
-      {
-        x = x_coord;
-
-        x_coord += xy_step;
-      }
+      x_coord += xy_step;
     }
 
-    // Initialize the y-axis coordinate.
-    const NumericType y_hi(mandelbrot_config_object.y_hi());
-
-    std::thread thread_00(local::thread_routine_00<typename std::vector<NumericType>::const_iterator>,
-                          x_values.cbegin(),
-                          x_values.cend(),
-                          y_hi - (0 * xy_step),
-                          xy_step,
-                          mandelbrot_config_object.max_iterations());
-
-    std::thread thread_01(local::thread_routine_01<typename std::vector<NumericType>::const_iterator>,
-                          x_values.cbegin(),
-                          x_values.cend(),
-                          y_hi - (1 * xy_step),
-                          xy_step,
-                          mandelbrot_config_object.max_iterations());
-
-    std::thread thread_02(local::thread_routine_02<typename std::vector<NumericType>::const_iterator>,
-                          x_values.cbegin(),
-                          x_values.cend(),
-                          y_hi - (2 * xy_step),
-                          xy_step,
-                          mandelbrot_config_object.max_iterations());
-
-    std::thread thread_03(local::thread_routine_03<typename std::vector<NumericType>::const_iterator>,
-                          x_values.cbegin(),
-                          x_values.cend(),
-                          y_hi - (3 * xy_step),
-                          xy_step,
-                          mandelbrot_config_object.max_iterations());
-
-    // Loop through all the rows of pixels on the vertical
-    // y-axis in the direction of decreasing y-value.
-
-    std::uint_fast32_t row = UINT32_C(0);
-
-    for(;;)
+    for(std::size_t i_row = 0U; i_row < y_values.size(); ++i_row)
     {
-      // Loop through the next columns of pixels on the horizontal
-      // x-axis in the direction of increasing x-value.
-      // Threads are used with one individual loop on the x-axis
-      // localized in a given thread.
+      y_values[i_row] = y_coord;
 
-      std::atomic_store(&local::mandelbrot_thread_do_loop_00, true);
-      std::atomic_store(&local::mandelbrot_thread_do_loop_01, true);
-      std::atomic_store(&local::mandelbrot_thread_do_loop_02, true);
-      std::atomic_store(&local::mandelbrot_thread_do_loop_03, true);
+      y_coord -= xy_step;
+    }
 
-      for(;;)
+    std::atomic_flag mandelbrot_iteration_lock = ATOMIC_FLAG_INIT;
+
+    std::size_t unordered_parallel_row_count = 0U;
+
+    static const NumericType four(4U);
+
+    my_concurrency::parallel_for
+    (
+      std::size_t(0U),
+      y_values.size(),
+      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &x_values, &y_values, this](std::size_t i_row)
       {
-        if(   std::atomic_load(&local::mandelbrot_thread_do_loop_00) == false
-           && std::atomic_load(&local::mandelbrot_thread_do_loop_01) == false
-           && std::atomic_load(&local::mandelbrot_thread_do_loop_02) == false
-           && std::atomic_load(&local::mandelbrot_thread_do_loop_03) == false)
+        while(mandelbrot_iteration_lock.test_and_set()) { ; }
+        ++unordered_parallel_row_count;
+        std::cout << "Calculating Mandelbrot image at row "
+                  << std::setw(6)
+                  << unordered_parallel_row_count
+                  << " of "
+                  << std::setw(6)
+                  << mandelbrot_config_object.height()
+                  << " total. Have patience."
+                  << "\r";
+        mandelbrot_iteration_lock.clear();
+
+        for(std::size_t j_col = 0U; j_col < x_values.size(); ++j_col)
         {
-          break;
+          NumericType zr (0U);
+          NumericType zi (0U);
+          NumericType zr2(0U);
+          NumericType zi2(0U);
+
+          // Use an optimized complex-numbered multiplication scheme.
+          // Thereby reduce the main work of the Mandelbrot iteration to
+          // three real-valued multiplications and several real-valued
+          // addition/subtraction operations.
+
+          std::uint_fast32_t iteration_result = UINT32_C(0);
+
+          // Perform the iteration sequence for generating the Mandelbrot set.
+          // Here is the main work of the program.
+
+          while((iteration_result < max_iterations) && ((zr2 + zi2) < four))
+          {
+            // Optimized complex multiply and add.
+            zi *= zr;
+
+            zi  = (zi  + zi)  + y_values[i_row];
+            zr  = (zr2 - zi2) + x_values[j_col];
+
+            zr2 = zr * zr;
+            zi2 = zi * zi;
+
+            ++iteration_result;
+          }
+
+          while(mandelbrot_iteration_lock.test_and_set()) { ; }
+          mandelbrot_iteration_matrix[j_col][i_row] = iteration_result;
+          ++mandelbrot_color_histogram[iteration_result];
+          mandelbrot_iteration_lock.clear();
         }
       }
-
-      for(std::size_t col = 0U; col < x_values.size(); ++col)
-      {
-        const std::uint_fast32_t iteration_result_00 = local::mandelbrot_thread_result_vector_00[col];
-        const std::uint_fast32_t iteration_result_01 = local::mandelbrot_thread_result_vector_01[col];
-        const std::uint_fast32_t iteration_result_02 = local::mandelbrot_thread_result_vector_02[col];
-        const std::uint_fast32_t iteration_result_03 = local::mandelbrot_thread_result_vector_03[col];
-
-        mandelbrot_iteration_matrix[col][static_cast<std::size_t>(row) + 0U] = iteration_result_00;
-        mandelbrot_iteration_matrix[col][static_cast<std::size_t>(row) + 1U] = iteration_result_01;
-        mandelbrot_iteration_matrix[col][static_cast<std::size_t>(row) + 2U] = iteration_result_02;
-        mandelbrot_iteration_matrix[col][static_cast<std::size_t>(row) + 3U] = iteration_result_03;
-
-        ++mandelbrot_color_histogram[iteration_result_00];
-        ++mandelbrot_color_histogram[iteration_result_01];
-        ++mandelbrot_color_histogram[iteration_result_02];
-        ++mandelbrot_color_histogram[iteration_result_03];
-      }
-
-      row += 4U;
-
-      std::cout << "Calculating Mandelbrot image at row "
-                << std::setw(6)
-                << row
-                << " of "
-                << std::setw(6)
-                << mandelbrot_config_object.height()
-                << " total. Have patience."
-                << "\r";
-
-      if(row >= mandelbrot_config_object.height())
-      {
-        break;
-      }
-    }
-
-    std::atomic_store(&local::mandelbrot_thread_exit_flag_00, true);
-    std::atomic_store(&local::mandelbrot_thread_exit_flag_01, true);
-    std::atomic_store(&local::mandelbrot_thread_exit_flag_02, true);
-    std::atomic_store(&local::mandelbrot_thread_exit_flag_03, true);
-
-    thread_00.join();
-    thread_01.join();
-    thread_02.join();
-    thread_03.join();
+    );
 
     const std::uint_fast32_t total_pixels =
       (  static_cast<std::uint_fast32_t>(mandelbrot_config_object.width ())
@@ -642,11 +402,11 @@ public:
 
     static_cast<void>(mandelbrot_sum);
 
-    for(row = UINT32_C(0); row < mandelbrot_config_object.height(); ++row)
+    for(std::uint_fast32_t i_row = UINT32_C(0); i_row < mandelbrot_config_object.height(); ++i_row)
     {
-      for(std::uint_fast32_t col = UINT32_C(0); col < mandelbrot_config_object.width(); ++col)
+      for(std::uint_fast32_t j_col = UINT32_C(0); j_col < mandelbrot_config_object.width(); ++j_col)
       {
-        const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[col][row]];
+        const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[j_col][i_row]];
 
         const std::array<std::uint_fast32_t (*)(const std::uint_fast32_t&), 3U> color_functions =
         {
@@ -681,7 +441,7 @@ public:
 
         const boost::gil::rgb8_pixel_t the_color  = boost::gil::rgb8_pixel_t(rh, gh, bh);
 
-        mandelbrot_view(col, row) = boost::gil::rgb8_pixel_t(the_color);
+        mandelbrot_view(j_col, i_row) = boost::gil::rgb8_pixel_t(the_color);
       }
     }
 
@@ -693,16 +453,18 @@ public:
   }
 
 private:
-  const mandelbrot_config_base<NumericType>&   mandelbrot_config_object;
+  const mandelbrot_config_type&                mandelbrot_config_object;
+
   boost::gil::rgb8_image_t                     mandelbrot_image;
   boost::gil::rgb8_view_t                      mandelbrot_view;
+
   std::vector<std::vector<std::uint_fast32_t>> mandelbrot_iteration_matrix;
   std::vector<std::uint_fast32_t>              mandelbrot_color_histogram;
 };
 
 int main()
 {
-  typedef boost::multiprecision::number<boost::multiprecision::cpp_dec_float<32>,
+  typedef boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>,
                                         boost::multiprecision::et_off>
   numeric_type;
 
@@ -762,7 +524,7 @@ int main()
     // Note: Use 128 decimal digits for this iteration.
 
     static_assert(std::numeric_limits<numeric_type>::digits10 >= 128,
-                  "Error: Please use 80 or more decimal digits for deep dive 01.");
+                  "Error: Please use 128 or more decimal digits for deep dive 01.");
 
     using mandelbrot_config_type = mandelbrot_config<numeric_type, UINT32_C(800), -366>;
 
@@ -798,15 +560,15 @@ int main()
 
   #endif
 
-  typedef mandelbrot_config_type::mandelbrot_config_numeric_type mandelbrot_numeric_type;
+  using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
-  typedef mandelbrot_generator<mandelbrot_numeric_type> mandelbrot_generator_type;
+  using mandelbrot_generator_type = mandelbrot_generator<mandelbrot_numeric_type, mandelbrot_config_type::max_iterations>;
 
   const std::clock_t start = std::clock();
 
-  mandelbrot_generator_type* the_mandelbrot_generator = new mandelbrot_generator_type(mandelbrot_config_object);
+  mandelbrot_generator_type mandelbrot_generator(mandelbrot_config_object);
 
-  the_mandelbrot_generator->generate_mandelbrot_image();
+  mandelbrot_generator.generate_mandelbrot_image();
 
   const float elapsed = (float(std::clock()) - float(start)) / float(CLOCKS_PER_SEC);
 
@@ -814,6 +576,4 @@ int main()
             << elapsed
             << "s"
             << std::endl;
-
-  delete the_mandelbrot_generator;
 }
