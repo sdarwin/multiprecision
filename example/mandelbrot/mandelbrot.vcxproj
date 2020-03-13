@@ -217,6 +217,7 @@
     <ClInclude Include="jpeg-6b\jpeglib.h" />
     <ClInclude Include="jpeg-6b\jversion.h" />
     <ClInclude Include="jpeg-6b\transupp.h" />
+    <ClInclude Include="mandelbrot.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
