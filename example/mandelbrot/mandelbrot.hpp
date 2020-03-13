@@ -30,14 +30,13 @@
 #endif
 
 #include <algorithm>
-#include <array>
 #include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <iomanip>
-#include <iostream>
-#include <iterator>
 #include <numeric>
+#include <ostream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -121,7 +120,7 @@ class mandelbrot_config_base
 public:
   static const std::uint_fast32_t max_iterations = MaxIterations;
 
-  typedef NumericType mandelbrot_config_numeric_type;
+  using mandelbrot_config_numeric_type = NumericType;
 
   virtual ~mandelbrot_config_base() { }
 
@@ -184,7 +183,7 @@ template<typename NumericType,
 class mandelbrot_config : public mandelbrot_config_base<NumericType, MaxIterations>
 {
 private:
-  typedef mandelbrot_config_base<NumericType, MaxIterations> base_class_type;
+  using base_class_type = mandelbrot_config_base<NumericType, MaxIterations>;
 
 public:
   static_assert(MandelbrotFractionalResolution < -1,
@@ -266,7 +265,7 @@ public:
 
   ~mandelbrot_generator() = default;
 
-  void generate_mandelbrot_image()
+  void generate_mandelbrot_image(const char* pstr_filename, std::ostream& os)
   {
     // Setup the x-axis and y-axis coordinates.
     std::vector<NumericType> x_values(mandelbrot_config_object.integral_width());
@@ -301,20 +300,20 @@ public:
     (
       std::size_t(0U),
       y_values.size(),
-      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &x_values, &y_values, this](std::size_t i_row)
+      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &os, &x_values, &y_values, this](std::size_t i_row)
       {
         while(mandelbrot_iteration_lock.test_and_set()) { ; }
         ++unordered_parallel_row_count;
-        std::cout << "Calculating Mandelbrot image at row "
-                  << unordered_parallel_row_count
-                  << " of "
-                  << y_values.size()
-                  << " total: "
-                  << std::fixed
-                  << std::setprecision(1)
-                  << (100.0F * float(unordered_parallel_row_count)) / float(y_values.size())
-                  << "%. Have patience."
-                  << "\r";
+        os << "Calculating Mandelbrot image at row "
+           << unordered_parallel_row_count
+           << " of "
+           << y_values.size()
+           << " total: "
+           << std::fixed
+           << std::setprecision(1)
+           << (100.0F * float(unordered_parallel_row_count)) / float(y_values.size())
+           << "%. Have patience."
+           << "\r";
         mandelbrot_iteration_lock.clear();
 
         for(std::size_t j_col = 0U; j_col < x_values.size(); ++j_col)
@@ -364,8 +363,8 @@ public:
     // a set of scale factors for the color. The histogram approach
     // automatically scales to the distribution of pixels in the image.
 
-    std::cout << std::endl;
-    std::cout << "Perform color-stretching using the histogram approach." << std::endl;
+    os << std::endl;
+    os << "Perform color-stretching using the histogram approach." << std::endl;
 
     const std::uint_fast32_t mandelbrot_sum =
       std::accumulate(mandelbrot_color_histogram.begin(),
@@ -439,11 +438,13 @@ public:
       }
     }
 
-    boost::gil::jpeg_write_view("mandelbrot.jpg", mandelbrot_view);
+    boost::gil::jpeg_write_view(std::string(pstr_filename), mandelbrot_view);
 
-    std::cout << std::endl
-              << "The ouptput file mandelbrot.jpg has been written"
-              << std::endl;
+    os << std::endl
+       << "The ouptput file "
+       << pstr_filename
+       << " has been written"
+       << std::endl;
   }
 
 private:

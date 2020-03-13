@@ -1,8 +1,13 @@
 #include <ctime>
+#include <iostream>
+
+#if defined(BOOST_MULTIPRECISION_MANDELBROT_USE_FLOAT128)
+#include <boost/multiprecision/float128.hpp>
+#else
+#include <boost/multiprecision/cpp_dec_float.hpp>
+#endif
 
 #include <mandelbrot.hpp>
-
-#include <boost/multiprecision/cpp_dec_float.hpp>
 
 //#define BOOST_MANDELBROT_01_FULL
 //#define BOOST_MANDELBROT_03_TOP
@@ -15,9 +20,12 @@
 
 int main()
 {
-  typedef boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>,
-                                        boost::multiprecision::et_off>
-  numeric_type;
+  #if defined(BOOST_MULTIPRECISION_MANDELBROT_USE_FLOAT128)
+  using numeric_type = boost::multiprecision::float128;
+  #else
+  using numeric_type = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>,
+                                                     boost::multiprecision::et_off>;
+  #endif
 
   #if defined BOOST_MANDELBROT_01_FULL
 
@@ -119,7 +127,7 @@ int main()
 
   mandelbrot_generator_type mandelbrot_generator(mandelbrot_config_object);
 
-  mandelbrot_generator.generate_mandelbrot_image();
+  mandelbrot_generator.generate_mandelbrot_image("mandelbrot.jpg", std::cout);
 
   const float elapsed = (float(std::clock()) - float(start)) / float(CLOCKS_PER_SEC);
 
