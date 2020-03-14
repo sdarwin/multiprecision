@@ -1,24 +1,31 @@
+///////////////////////////////////////////////////////////////////////////////
+//  Copyright Christopher Kormanyos 2019.
+//  Distributed under the Boost Software License,
+//  Version 1.0. (See accompanying file LICENSE_1_0.txt
+//  or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
 
-//       Copyright Christopher Kormanyos 2014 - 2015.
-// Distributed under the Boost Software License, Version 1.0.
-//    (See accompanying file LICENSE_1_0.txt or copy at
-//          http://www.boost.org/LICENSE_1_0.txt)
+// chapter10_08-001_pi_millions_with_boost.cpp
 
 // This program can be used to compute millions of digits of pi.
-// On fact, it has been used to compute more than one billion
+// In fact, it has been used to compute more than one billion
 // decimal digits of pi. Boost.Multiprecision is combined with
 // GMP (or MPIR) in order to carry out the calculation of pi.
 
+// This program requires inclusion of Boost.Multiprecision
+// and linking with GMP (or MPIR on certain targets).
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <regex>
 #include <sstream>
+#include <string>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/multiprecision/gmp.hpp>
@@ -27,20 +34,23 @@ namespace pi { namespace millions { namespace detail {
 
 // *****************************************************************************
 // Function    : template<typename float_type>
-//               const float_type& calculate_pi_template(const bool progress_is_printed_to_cout)
+//               const float_type& calculate_pi_template(const bool print_progress)
 //
 // Description : Compute pi using a quadratically convergent Gauss AGM,
 //               in the Schoenhage variant. For a description of the algorithm,
-//               see the book "Pi Unleashed", as shown in the comments below.
-//               If the input parameter progress_is_printed_to_cout = true,
-//               then the calculation progress will be printed to std::cout.
+//               see Algorithm 16.148, Chapter 16, page 236 in the book
+//               J. Arndt and C. Haenel, "Pi Unleashed",
+//               (Springer Verlag, Heidelberg, 2001).
+//
+//               The parameter print_progress_to_cout (= true),
+//               will print calculation progress to std::cout.
 //
 //               Book reference for "Pi Unleashed":
-//               http://www.jjj.de/pibook/pibook.html
+//               https://www.springer.com/de/book/9783642567353
 //
 // *****************************************************************************
 template<typename float_type>
-const float_type& pi(const bool progress_is_printed_to_cout = false)
+const float_type& pi(const bool print_progress = false)
 {
   static bool is_init;
 
@@ -50,7 +60,7 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
   {
     is_init = true;
 
-    static const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
+    const std::regex rx("^[^e]+[e0+-]+([0-9]+)$");
 
     std::match_results<std::string::const_iterator> mr;
 
@@ -63,12 +73,12 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
     float_type s (0.5F);
     float_type t (0.375F);
 
-    // This loop is designed for computing a maximum of a few billion
+    // This loop is designed to compute a maximum of a few billion
     // decimal digits of pi. The number of digits roughly doubles
     // with each iteration of the loop. After 20 iterations,
     // the precision is about 2.8 million decimal digits.
-    // After 29 iterations, the precision is more than one
-    // billion decimal digits.
+    // After 29 iterations, the precision reaches more than
+    // one billion decimal digits.
 
     for(std::uint_least16_t k = UINT8_C(1); k < UINT8_C(64); ++k)
     {
@@ -78,16 +88,20 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
       a      /= 2U;
       val_pi  = a;
       val_pi *= val_pi;
-      bB      = (val_pi - t) * 2U;
+      bB      = (val_pi - t);
+      bB     *= 2U;
 
       const float_type iterate_term((bB - val_pi) * (UINT64_C(1) << k));
 
       s += iterate_term;
 
-      // Extract the base-10 order of magnitude for a rough estimate of
-      // the number of base-10 digits that have been obtained in this
-      // iteration. Here, we produce a short printout of the iteration
-      // term that is subsequently parsed with a regular expression
+      // Extract the base-10 order of magnitude
+      // to estimate the base-10 digits in this
+      // iteration.
+
+      // Here, we produce a short printout
+      // of the iteration term that is subsequently
+      // parsed with a regular expression
       // for extracting the base-10 order.
 
       // Note: We are only extracting a few digits from iterate_term.
@@ -99,28 +113,35 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
       const bool is_match =
         std::regex_match(str_iterate_term, mr, rx);
 
-      const std::uint64_t approximate_digits10_of_iteration_term =
-        (is_match ? boost::lexical_cast<std::uint64_t>(mr[1U])
+      const std::uint64_t digits10_iterate =
+        (is_match ? (std::max)(boost::lexical_cast<std::uint64_t>(mr[1U]), std::uint64_t(0U))
                   : UINT64_C(0));
 
-      if(progress_is_printed_to_cout)
+      if(print_progress)
       {
-        std::cout << "Approximate base-10 digits of this iteration : "
+        std::cout << "Base-10 digits of iteration "
+                  << std::right
+                  << std::setw(3)
+                  << k
+                  << ": "
                   << std::right
                   << std::setw(12)
-                  << approximate_digits10_of_iteration_term
+                  << digits10_iterate
                   << '\n';
       }
 
-      // Test the approximate base-10 digits of this iteration term.
-      // If we have attained about half of the total desired digits
-      // with this iteration term, then the calculation is finished
+      // Test the approximate base-10 digits
+      // of this iteration term.
+
+      // If we have attained at least half or more
+      // of the total desired digits with this
+      // iteration, the calculation is finished
       // because the change from the next iteration will be
       // insignificantly small.
-      const std::uint64_t digits10_iteration_goal =
-        static_cast<std::uint64_t>((std::numeric_limits<float_type>::digits10 / 2) + 16);
+      BOOST_CONSTEXPR_OR_CONST std::uint64_t digits10_iterate_goal =
+        static_cast<std::uint64_t>((static_cast<std::uint64_t>(std::numeric_limits<float_type>::digits10) + 1LL) / 2LL) + 16LL;
 
-      if(approximate_digits10_of_iteration_term > digits10_iteration_goal)
+      if(digits10_iterate > digits10_iterate_goal)
       {
         break;
       }
@@ -132,15 +153,15 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
       ss.str(std::string());
     }
 
-    if(progress_is_printed_to_cout)
+    if(print_progress)
     {
-      std::cout << "The iteration loop is done, compute the inverse" << '\n';
+      std::cout << "Iteration loop done, compute inverse" << '\n';
     }
 
     val_pi += bB;
     val_pi /= s;
 
-    if(progress_is_printed_to_cout)
+    if(print_progress)
     {
       std::cout << "The pi calculation is done." << '\n';
     }
@@ -152,7 +173,7 @@ const float_type& pi(const bool progress_is_printed_to_cout = false)
 template<typename float_type>
 std::ostream& report_pi_timing(std::ostream& os, const float elapsed)
 {
-  return os << "============================================================" << '\n'
+  return os << "=================================================" << '\n'
             << "Computed "
             << static_cast<std::uint64_t>(std::numeric_limits<float_type>::digits10 - 1)
             << " digits of pi.\n"
@@ -162,7 +183,7 @@ std::ostream& report_pi_timing(std::ostream& os, const float elapsed)
             << elapsed
             << " seconds"
             << '\n'
-            << "============================================================"
+            << "================================================="
             << '\n';
 }
 
@@ -177,13 +198,17 @@ void print_pi(std::ostream& os)
   // messages to the console. Use the clock function to obtain the
   // total time of the pi calculation.
 
-  const std::clock_t start = std::clock();
+  using local_time_point_type =
+    std::chrono::high_resolution_clock::time_point;
+
+  const local_time_point_type start = std::chrono::high_resolution_clock::now();
   detail::pi<float_type>(true);
-  const std::clock_t stop = std::clock();
+  const local_time_point_type stop  = std::chrono::high_resolution_clock::now();
 
   // Evaluate the time that was required for the pi calculation.
   const float elapsed =
-    static_cast<float>(stop - start) / static_cast<float>(CLOCKS_PER_SEC);
+      static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count())
+    / static_cast<float>(1000.0F);
 
   // Report the time of the pi calculation to the console.
   static_cast<void>(detail::report_pi_timing<float_type>(std::cout, elapsed));
@@ -199,7 +224,7 @@ void print_pi(std::ostream& os)
 
   // Pipe the value of pi into a stringstream object with full precision.
   ss << std::fixed
-     << std::setprecision(std::numeric_limits<float_type>::digits10 - 1)
+     << std::setprecision(std::streamsize(std::numeric_limits<float_type>::digits10) - 1)
      << detail::pi<float_type>();
 
   // Extract the string value of pi.
@@ -213,14 +238,12 @@ void print_pi(std::ostream& os)
   //        4811174502 8410270193 8521105559 6446229489 5493038196 : 200
   //        ...
 
-  const char* char_set_separator   = " ";
-  const char* char_group_separator = "\n";
-  //const char* char_set_separator   = "";
-  //const char* char_group_separator = "";
+  BOOST_CONSTEXPR_OR_CONST char* char_set_separator   = " ";
+  BOOST_CONSTEXPR_OR_CONST char* char_group_separator = "\n";
 
-  const std::size_t digits_per_set   = 10U;
-  const std::size_t digits_per_line  = digits_per_set * 5U;
-  const std::size_t digits_per_group = digits_per_line * 10U;
+  BOOST_CONSTEXPR_OR_CONST std::size_t digits_per_set   = 10U;
+  BOOST_CONSTEXPR_OR_CONST std::size_t digits_per_line  = digits_per_set * 5U;
+  BOOST_CONSTEXPR_OR_CONST std::size_t digits_per_group = digits_per_line * 10U;
 
   // The digits after the decimal point are grouped
   // in sets of digits_per_set with digits_per_line
@@ -292,7 +315,7 @@ void print_pi(std::ostream& os)
       if(this_line_is_finished)
       {
         // Print the running-digit count and start a new line.
-        os << ": " << number_of_digits << char('\n');
+        os << ": " << number_of_digits << std::endl;
 
         const bool this_group_of_lines_is_finished =
           (std::size_t(number_of_digits % digits_per_group) == std::size_t(0U));
@@ -316,7 +339,7 @@ void print_pi(std::ostream& os)
 int main()
 {
   using float_type =
-    boost::multiprecision::number<boost::multiprecision::gmp_float<1000001UL>,
+    boost::multiprecision::number<boost::multiprecision::gmp_float<1000000002UL>,
                                   boost::multiprecision::et_off>;
 
   std::ofstream out("pi.out");
@@ -327,6 +350,4 @@ int main()
 
     out.close();
   }
-
-  return 0;
 }

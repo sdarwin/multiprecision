@@ -15,6 +15,7 @@
 
 namespace boost { namespace multiprecision { namespace detail {
 
+/*
 template <class To, class From>
 inline To do_cast(const From& from)
 {
@@ -25,7 +26,7 @@ inline To do_cast(const number<B, et>& from)
 {
    return from.template convert_to<To>();
 }
-
+*/
 template <class To, class From>
 inline To do_cast(const From & from)
 {
