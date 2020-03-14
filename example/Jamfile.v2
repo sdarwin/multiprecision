@@ -60,6 +60,8 @@ project
       <toolset>msvc:<cxxflags>/wd4701
       <toolset>msvc:<cxxflags>/wd4127
       <toolset>msvc:<cxxflags>/wd4305
+      <toolset>clang:<link>static
+     
     ;
 
 lib gmp : : <search>$(gmp_path) ;
@@ -69,7 +71,7 @@ lib quadmath ;
 
 if $(tommath_path)
 {
-   lib tommath : [ GLOB $(tommath_path) : *.c ] ;
+   lib tommath : [ GLOB $(tommath_path) : *.c ] : <visibility>global ;
    TOMMATH = tommath ;
 }
 else
