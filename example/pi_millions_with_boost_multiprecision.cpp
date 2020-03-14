@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-//  Copyright Christopher Kormanyos 2019.
+//  Copyright Christopher Kormanyos 1999-2020.
 //  Distributed under the Boost Software License,
 //  Version 1.0. (See accompanying file LICENSE_1_0.txt
 //  or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -14,6 +14,11 @@
 
 // This program requires inclusion of Boost.Multiprecision
 // and linking with GMP (or MPIR on certain targets).
+// At ehe moment, slight modifications are required in
+// Boost.Multiprecision in order to handle the large digit
+// count. In particular, when exceeding a few tens of millions
+// of digits, the expression of maximum digit2 and certain digit
+// constants in numeric_limits need to be extended to long long.
 
 #include <algorithm>
 #include <chrono>
@@ -37,12 +42,13 @@ namespace pi { namespace millions { namespace detail {
 //               const float_type& calculate_pi_template(const bool print_progress)
 //
 // Description : Compute pi using a quadratically convergent Gauss AGM,
-//               in the Schoenhage variant. For a description of the algorithm,
-//               see Algorithm 16.148, Chapter 16, page 236 in the book
-//               J. Arndt and C. Haenel, "Pi Unleashed",
+//               in the Schoenhage variant. This is a well-known algorithm.
+//               For a particularly clear description of this algorithm,
+//               see "Algorithm 16.148" in Chapter 16 on page 236 from
+//               the book "Pi Unleashed" by J. Arndt and C. Haenel
 //               (Springer Verlag, Heidelberg, 2001).
 //
-//               The parameter print_progress_to_cout (= true),
+//               The parameter print_progress (= true),
 //               will print calculation progress to std::cout.
 //
 //               Book reference for "Pi Unleashed":
