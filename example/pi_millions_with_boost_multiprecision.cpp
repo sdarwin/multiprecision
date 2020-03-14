@@ -14,7 +14,7 @@
 
 // This program requires inclusion of Boost.Multiprecision
 // and linking with GMP (or MPIR on certain targets).
-// At ehe moment, slight modifications are required in
+// At the moment, slight modifications are required in
 // Boost.Multiprecision in order to handle the large digit
 // count. In particular, when exceeding a few tens of millions
 // of digits, the expression of maximum digit2 and certain digit
@@ -37,24 +37,21 @@
 
 namespace pi { namespace millions { namespace detail {
 
-// *****************************************************************************
-// Function    : template<typename float_type>
-//               const float_type& calculate_pi_template(const bool print_progress)
+/**
+// \func template<typename float_type> const float_type& pi()
 //
-// Description : Compute pi using a quadratically convergent Gauss AGM,
-//               in the Schoenhage variant. This is a well-known algorithm.
-//               For a particularly clear description of this algorithm,
-//               see "Algorithm 16.148" in Chapter 16 on page 236 from
-//               the book "Pi Unleashed" by J. Arndt and C. Haenel
-//               (Springer Verlag, Heidelberg, 2001).
+// \desc Compute pi using a quadratically convergent Gauss AGM,
+//       in the Schoenhage variant. This is a well-known algorithm.
+//       For a particularly clear description of this algorithm,
+//       see "Algorithm 16.148" in Chapter 16 on page 236 from
+//       the book "Pi Unleashed" by J. Arndt and C. Haenel
+//       (Springer Verlag, Heidelberg, 2001).
+//       The parameter print_progress (= true),
+//       will print calculation progress to std::cout.
+//       Book reference for "Pi Unleashed":
+//       https://www.springer.com/de/book/9783642567353
 //
-//               The parameter print_progress (= true),
-//               will print calculation progress to std::cout.
-//
-//               Book reference for "Pi Unleashed":
-//               https://www.springer.com/de/book/9783642567353
-//
-// *****************************************************************************
+*/
 template<typename float_type>
 const float_type& pi(const bool print_progress = false)
 {
