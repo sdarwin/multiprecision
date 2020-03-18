@@ -273,27 +273,18 @@ public:
   void generate_mandelbrot_image(const char* pstr_filename, std::ostream& os)
   {
     // Setup the x-axis and y-axis coordinates.
-    std::vector<NumericType> x_values(mandelbrot_config_object.integral_width());
-    std::vector<NumericType> y_values(mandelbrot_config_object.integral_height());
+    // TBD: Consider potential program redesign with unequal x/y ranges.
 
     const NumericType xy_step(mandelbrot_config_object.step());
+
+    std::vector<NumericType> x_values(mandelbrot_config_object.integral_width());
+    std::vector<NumericType> y_values(mandelbrot_config_object.integral_height());
 
     NumericType x_coord(mandelbrot_config_object.x_lo());
     NumericType y_coord(mandelbrot_config_object.y_hi());
 
-    for(std::size_t j_col = 0U; j_col < x_values.size(); ++j_col)
-    {
-      x_values[j_col] = x_coord;
-
-      x_coord += xy_step;
-    }
-
-    for(std::size_t i_row = 0U; i_row < y_values.size(); ++i_row)
-    {
-      y_values[i_row] = y_coord;
-
-      y_coord -= xy_step;
-    }
+    for(auto& x : x_values) { x = x_coord; x_coord += xy_step; }
+    for(auto& y : y_values) { y = y_coord; y_coord -= xy_step; }
 
     std::atomic_flag mandelbrot_iteration_lock = ATOMIC_FLAG_INIT;
 
@@ -305,7 +296,7 @@ public:
     (
       std::size_t(0U),
       y_values.size(),
-      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &os, &x_values, &y_values, this](std::size_t i_row)
+      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &os, &x_values, &y_values, this](std::size_t j_row)
       {
         while(mandelbrot_iteration_lock.test_and_set()) { ; }
         ++unordered_parallel_row_count;
@@ -321,7 +312,7 @@ public:
            << "\r";
         mandelbrot_iteration_lock.clear();
 
-        for(std::size_t j_col = 0U; j_col < x_values.size(); ++j_col)
+        for(std::size_t i_col = 0U; i_col < x_values.size(); ++i_col)
         {
           NumericType zr (0U);
           NumericType zi (0U);
@@ -343,8 +334,8 @@ public:
             // Optimized complex multiply and add.
             zi *= zr;
 
-            zi  = (zi  + zi)  + y_values[i_row];
-            zr  = (zr2 - zi2) + x_values[j_col];
+            zi  = (zi  + zi)  + y_values[j_row];
+            zr  = (zr2 - zi2) + x_values[i_col];
 
             zr2 = zr; zr2 *= zr;
             zi2 = zi; zi2 *= zi;
@@ -353,7 +344,7 @@ public:
           }
 
           while(mandelbrot_iteration_lock.test_and_set()) { ; }
-          mandelbrot_iteration_matrix[j_col][i_row] = iteration_result;
+          mandelbrot_iteration_matrix[i_col][j_row] = iteration_result;
           ++mandelbrot_color_histogram[iteration_result];
           mandelbrot_iteration_lock.clear();
         }
@@ -400,11 +391,11 @@ public:
 
     static_cast<void>(mandelbrot_sum);
 
-    for(std::uint_fast32_t i_row = UINT32_C(0); i_row < y_values.size(); ++i_row)
+    for(std::uint_fast32_t j_row = UINT32_C(0); j_row < y_values.size(); ++j_row)
     {
-      for(std::uint_fast32_t j_col = UINT32_C(0); j_col < x_values.size(); ++j_col)
+      for(std::uint_fast32_t i_col = UINT32_C(0); i_col < x_values.size(); ++i_col)
       {
-        const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[j_col][i_row]];
+        const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[i_col][j_row]];
 
         const std::array<std::uint_fast32_t (*)(const std::uint_fast32_t&), 3U> color_functions =
         {
@@ -439,15 +430,17 @@ public:
 
         const boost::gil::rgb8_pixel_t the_color  = boost::gil::rgb8_pixel_t(rh, gh, bh);
 
-        mandelbrot_view(j_col, i_row) = boost::gil::rgb8_pixel_t(the_color);
+        mandelbrot_view(i_col, j_row) = boost::gil::rgb8_pixel_t(the_color);
       }
     }
 
-    boost::gil::jpeg_write_view(std::string(pstr_filename), mandelbrot_view);
+    const std::string str_filename(pstr_filename);
+
+    boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
 
     os << std::endl
        << "The ouptput file "
-       << pstr_filename
+       << str_filename
        << " has been written"
        << std::endl;
   }
