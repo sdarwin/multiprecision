@@ -19,11 +19,28 @@
 // At the moment, they are programmed in a less intuitive
 // way that might be difficult to understand.
 
-// TBD: At the moment, a single color scheme is used.
-// It is implemented in three individual "color"
-// lambda functions. This is something that would
-// benefit from some kind of configuration-ability.
-// Can we use user-supplied RGB color functions?
+// The Mandelbrot set consists of those points c in the complex plane
+// for which z_{n+1} = z_{n}^2 + c with z_{0} = 0 stays bounded.
+// Interesting points could be points for which we have an orbit.
+// An orbit of length n is a sequence of z_{n}
+// z_{1} = c, z_{2}, ..., z{n}
+// Such that z_{n} = z_{1} and z_{n} != z_{k} with 1<k<n
+// In order to find these you need to revert to numerical methods.
+// The equation z_{n} = z_{1} can only be solved by hand for small n
+// A point c of order n will also show up as a point of order n_{m},
+// for some m > 1. Mark these points in your set.
+
+// Any point that is inside the Mandelbrot set and close to the
+// boundary between the set and its complement as well as any point
+// outside the Mandelbrot set that is close to this boundary is an
+// interesting point. The closer you are to the boundary, the more
+// you need to zoom in to see the interesting parts.
+// All points on the x-axis between -2 and 1/4 belong to the Mandelbrot set.
+// Especially close to x = -2 (from the right), the point (x, 0)
+// is arbitrarily close to the boundary. So try the point (eps - 2, 0)
+// for a small eps > 0. Most Mandelbrot software that zooms in continually
+// tries to find a point close to the boundary while zooming, and uses
+// that as the zoom point.
 
 #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
@@ -68,7 +85,7 @@ void parallel_for(index_type             start,
   index_type n = index_type(end - start) + index_type(1);
 
   index_type slice =
-    static_cast<index_type>(std::round(n / static_cast<double> (number_of_threads)));
+    static_cast<index_type>(std::round(n / static_cast<float>(number_of_threads)));
 
   slice = (std::max)(slice, index_type(1));
 
@@ -115,6 +132,64 @@ void parallel_for(index_type             start,
 }
 } // namespace my_concurrency
 
+class color_functions_base
+{
+public:
+  virtual ~color_functions_base() = default;
+
+  virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t&) const = 0;
+  virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t&) const = 0;
+  virtual std::uint_fast32_t color_function_b(const std::uint_fast32_t&) const = 0;
+
+protected:
+  color_functions_base() = default;
+
+  static std::uint_fast32_t color_phaser(const std::uint_fast32_t& c)
+  {
+    const float color_phase = (float(c) / 255.0F) * (3.1415926535897932385F * 8.0F);
+
+    const float my_color = (std::sin(color_phase) / 2.0F) + 0.5F;
+
+    return static_cast<std::uint_fast32_t>(my_color * 255.0F);
+  }
+};
+
+class color_functions_bw final : public color_functions_base
+{
+public:
+  color_functions_bw() = default;
+
+  virtual ~color_functions_bw() = default;
+
+private:
+  virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t& c) const { return color_phaser(c); }
+  virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t& c) const { return color_phaser(c); }
+  virtual std::uint_fast32_t color_function_b(const std::uint_fast32_t& c) const { return color_phaser(c); }
+};
+
+class color_functions_pretty final : public color_functions_base
+{
+public:
+  color_functions_pretty() = default;
+
+  virtual ~color_functions_pretty() = default;
+
+private:
+  virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t& c) const
+  {
+    return color_phaser(c);
+  }
+
+  virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t& c) const
+  {
+    return c;
+  }
+
+  virtual std::uint_fast32_t color_function_b(const std::uint_fast32_t& c) const
+  {
+    return static_cast<std::uint_fast32_t>((float(c) * float(c)) / 255.0F);
+  }
+};
 } // namespace detail
 
 // Declare a base class for the Mandelbrot configuration.
@@ -270,10 +345,11 @@ public:
 
   ~mandelbrot_generator() = default;
 
-  void generate_mandelbrot_image(const char* pstr_filename, std::ostream& os)
+  void generate_mandelbrot_image(const std::string& str_filename,
+                                 const detail::color_functions_base& color_functions = detail::color_functions_bw(),
+                                 std::ostream& os = std::cout)
   {
     // Setup the x-axis and y-axis coordinates.
-    // TBD: Consider potential program redesign with unequal x/y ranges.
 
     std::vector<NumericType> x_values(mandelbrot_config_object.integral_width());
     std::vector<NumericType> y_values(mandelbrot_config_object.integral_height());
@@ -372,18 +448,18 @@ public:
       {
         sum += histogram_entry;
 
-        const double sum_div_total_pixels =
-          static_cast<double>(sum) / static_cast<double>(total_pixels);
+        const float sum_div_total_pixels =
+          static_cast<float>(sum) / static_cast<float>(total_pixels);
 
-        const double histogram_scale = std::pow(sum_div_total_pixels, 1.2);
+        const float histogram_scale = std::pow(sum_div_total_pixels, 1.2F);
 
         std::uint_fast32_t scaled_histogram_value =
-          static_cast<std::uint_fast32_t>(histogram_scale * static_cast<double>(0xFFU));
+          static_cast<std::uint_fast32_t>(histogram_scale * static_cast<float>(0xFFU));
 
         if(scaled_histogram_value < 0xFFU)
         {
           scaled_histogram_value =
-            static_cast<std::uint_fast32_t>(std::pow(double(scaled_histogram_value), 1.00));
+            static_cast<std::uint_fast32_t>(std::pow(float(scaled_histogram_value), 1.0F));
         }
 
         histogram_entry = UINT32_C(0xFF) - scaled_histogram_value;
@@ -393,37 +469,28 @@ public:
 
     static_cast<void>(mandelbrot_sum);
 
+    apply_color_functions(x_values, y_values, color_functions);
+
+    boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
+
+    os << std::endl
+       << std::string("The ouptput file " + str_filename + " has been written")
+       << std::endl;
+  }
+
+  void apply_color_functions(const std::vector<NumericType>& x_values,
+                             const std::vector<NumericType>& y_values,
+                             const detail::color_functions_base& color_functions)
+  {
     for(std::uint_fast32_t j_row = UINT32_C(0); j_row < y_values.size(); ++j_row)
     {
       for(std::uint_fast32_t i_col = UINT32_C(0); i_col < x_values.size(); ++i_col)
       {
         const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[i_col][j_row]];
 
-        const std::array<std::uint_fast32_t (*)(const std::uint_fast32_t&), 3U> color_functions =
-        {
-          [](const std::uint_fast32_t& the_color) -> std::uint_fast32_t
-          {
-            const double color_phase = (double(the_color) / 255.0) * (3.1415926535897932385 * 8.0);
-
-            const double my_color_red = (std::sin(color_phase) / 2.0) + 0.5;
-
-            return static_cast<std::uint_fast32_t>(my_color_red * 255.0);
-          },
-
-          [](const std::uint_fast32_t& the_color) -> std::uint_fast32_t
-          {
-            return the_color;
-          },
-
-          [](const std::uint_fast32_t& the_color) -> std::uint_fast32_t
-          {
-            return (the_color * the_color) / 255;
-          }
-        };
-
-        const std::uint_fast32_t color_r = ((color <= 4U) ? color : color_functions[0U](color));
-        const std::uint_fast32_t color_g = ((color <= 4U) ? color : color_functions[1U](color));
-        const std::uint_fast32_t color_b = ((color <= 4U) ? color : color_functions[2U](color));
+        const std::uint_fast32_t color_r = ((color <= 4U) ? color : color_functions.color_function_r(color));
+        const std::uint_fast32_t color_g = ((color <= 4U) ? color : color_functions.color_function_g(color));
+        const std::uint_fast32_t color_b = ((color <= 4U) ? color : color_functions.color_function_b(color));
 
         // Mix the color supplied in the template hue parameters.
         const std::uint8_t rh = static_cast<std::uint8_t>((255U * color_r) / UINT32_C(255));
@@ -435,14 +502,6 @@ public:
         mandelbrot_view(i_col, j_row) = boost::gil::rgb8_pixel_t(the_color);
       }
     }
-
-    const std::string str_filename(pstr_filename);
-
-    boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
-
-    os << std::endl
-       << std::string("The ouptput file " + str_filename + " has been written")
-       << std::endl;
   }
 
 private:
