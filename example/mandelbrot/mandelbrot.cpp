@@ -17,6 +17,7 @@
 //#define BOOST_MANDELBROT_07_SEAHORSE_VALLEY
 //#define BOOST_MANDELBROT_08_DEEP_DIVE_01
 //#define BOOST_MANDELBROT_09_DEEP_DIVE_02
+//#define BOOST_MANDELBROT_10_ZOOM_WIKI_01
 
 int main()
 {
@@ -29,7 +30,7 @@ int main()
 
   #if defined BOOST_MANDELBROT_01_FULL
 
-    // This is the classic full immage from (-2.0, -1.0) ... (05, 1.0).
+    // This is the classic full immage.
     using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(2000), -10>;
 
     const mandelbrot_config_type mandelbrot_config_object(-2.000L, +0.500L,
@@ -80,10 +81,10 @@ int main()
   #elif defined BOOST_MANDELBROT_08_DEEP_DIVE_01
 
     // This is a deep zoom image.
-    // Note: Use 128 decimal digits for this iteration.
+    // Note: Use 128 or more decimal digits for this iteration.
 
-    static_assert(std::numeric_limits<numeric_type>::digits10 >= 128,
-                  "Error: Please use 128 or more decimal digits for deep dive 01.");
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 127,
+                  "Error: Please use 127 or more decimal digits for BOOST_MANDELBROT_08_DEEP_DIVE_01.");
 
     using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(800), -366>;
 
@@ -98,16 +99,35 @@ int main()
   #elif defined BOOST_MANDELBROT_09_DEEP_DIVE_02
 
     // This is a deep zoom image.
-    // Note: Use 80 decimal digits for this iteration.
+    // Note: Use 79 or more decimal digits for this iteration.
 
-    static_assert(std::numeric_limits<numeric_type>::digits10 >= 80,
-                  "Error: Please use 80 or more decimal digits for deep dive 02.");
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 79,
+                  "Error: Please use 79 or more decimal digits for BOOST_MANDELBROT_09_DEEP_DIVE_02.");
 
     using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(8000), -192>;
 
     const numeric_type delta("+1.78E-55");
     const numeric_type cx   (numeric_type("-1.295189082147777457017064177185681926706566460884888469217455"));
     const numeric_type cy   (numeric_type("+0.440936982678320138880903678356262612113214627431396203682665"));
+
+    const mandelbrot_config_type
+      mandelbrot_config_object(cx - delta, cx + delta,
+                               cy - delta, cy + delta);
+
+  #elif defined  BOOST_MANDELBROT_10_ZOOM_WIKI_01
+
+    // This is a medium zoom image from the zoom coordinates of:
+    // https://en.wikipedia.org/wiki/File:Mandelbrot_sequence_new.gif
+    // Note: Use 39 or more decimal digits for this iteration.
+
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 39,
+                  "Error: Please use 39 or more decimal digits for BOOST_MANDELBROT_10_ZOOM_WIKI_01.");
+
+    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(10000), -78>;
+
+    const numeric_type delta("+3.0E-21");
+    const numeric_type cx   (numeric_type("-0.743643887037158704752191506114774"));
+    const numeric_type cy   (numeric_type("+0.131825904205311970493132056385139"));
 
     const mandelbrot_config_type
       mandelbrot_config_object(cx - delta, cx + delta,

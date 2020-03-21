@@ -12,7 +12,7 @@
 // a high-precision Mandelbrot iteration and visualization.
 // Graphic file creation uses Boost.Gil-old to wrap JPEG.
 // Color-strething in combination with the histogram method
-// is used for creating vivid landscapes.
+// is used for creating vivid images.
 
 // TBD: The color stretching and histogram methods
 // should be investigated and possibly refactored.
@@ -127,7 +127,7 @@ public:
 
   using mandelbrot_config_numeric_type = NumericType;
 
-  virtual ~mandelbrot_config_base() { }
+  virtual ~mandelbrot_config_base() = default;
 
   const mandelbrot_config_numeric_type& x_lo() const { return my_x_lo; }
   const mandelbrot_config_numeric_type& x_hi() const { return my_x_hi; }
@@ -171,7 +171,7 @@ protected:
       my_y_lo  (yl),
       my_y_hi  (yh),
       my_width (my_x_hi - my_x_lo),
-      my_height(my_y_hi - my_y_lo){ }
+      my_height(my_y_hi - my_y_lo) { }
 
 private:
   mandelbrot_config_base() = default;
@@ -275,22 +275,24 @@ public:
     // Setup the x-axis and y-axis coordinates.
     // TBD: Consider potential program redesign with unequal x/y ranges.
 
-    const NumericType xy_step(mandelbrot_config_object.step());
-
     std::vector<NumericType> x_values(mandelbrot_config_object.integral_width());
     std::vector<NumericType> y_values(mandelbrot_config_object.integral_height());
 
-    NumericType x_coord(mandelbrot_config_object.x_lo());
-    NumericType y_coord(mandelbrot_config_object.y_hi());
+    {
+      const NumericType local_step(mandelbrot_config_object.step());
 
-    for(auto& x : x_values) { x = x_coord; x_coord += xy_step; }
-    for(auto& y : y_values) { y = y_coord; y_coord -= xy_step; }
+      NumericType x_coord(mandelbrot_config_object.x_lo());
+      NumericType y_coord(mandelbrot_config_object.y_hi());
+
+      for(auto& x : x_values) { x = x_coord; x_coord += local_step; }
+      for(auto& y : y_values) { y = y_coord; y_coord -= local_step; }
+    }
+
+    static const NumericType four(4U);
 
     std::atomic_flag mandelbrot_iteration_lock = ATOMIC_FLAG_INIT;
 
     std::size_t unordered_parallel_row_count = 0U;
-
-    static const NumericType four(4U);
 
     detail::my_concurrency::parallel_for
     (
@@ -439,9 +441,7 @@ public:
     boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
 
     os << std::endl
-       << "The ouptput file "
-       << str_filename
-       << " has been written"
+       << std::string("The ouptput file " + str_filename + " has been written")
        << std::endl;
   }
 
