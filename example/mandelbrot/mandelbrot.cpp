@@ -1,11 +1,7 @@
 #include <ctime>
 #include <iostream>
 
-#if defined(BOOST_MULTIPRECISION_MANDELBROT_USE_FLOAT128)
-#include <boost/multiprecision/float128.hpp>
-#else
 #include <boost/multiprecision/cpp_dec_float.hpp>
-#endif
 
 #include <mandelbrot.hpp>
 
@@ -64,11 +60,11 @@ int main()
     const std::string str_filename = "mandelbrot_" + std::string("BOOST_MANDELBROT_05_SEAHORSES") + ".jpg";
 
     // This is a swirly seahorse image.
-    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(2000), -49>;
+    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(2000), -48>;
 
     const mandelbrot_config_type
-      mandelbrot_config_object(-0.7453983606668L - 1.72E-12L, -0.7453983606668L + 1.72E-12L,
-                               +0.1125046349960L - 1.72E-12L, +0.1125046349960L + 1.72E-12L);
+      mandelbrot_config_object(-0.7453983606667815L - 1.76E-12L, -0.7453983606667815L + 1.76E-12L,
+                               +0.1125046349959942L - 1.76E-12L, +0.1125046349959942L + 1.76E-12L);
 
   #elif defined BOOST_MANDELBROT_06_BRANCHES
 
@@ -141,7 +137,7 @@ int main()
 
   #elif defined  BOOST_MANDELBROT_10_ZOOM_WIKI_01
 
-    using numeric_type = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<39>>;
+    using numeric_type = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<47>>;
 
     const std::string str_filename = "mandelbrot_" + std::string("BOOST_MANDELBROT_10_ZOOM_WIKI_01") + ".jpg";
 
@@ -149,12 +145,12 @@ int main()
     // http://en.wikipedia.org/wiki/File:Mandelbrot_sequence_new.gif
     // Note: Use 39 or more decimal digits for this iteration.
 
-    static_assert(std::numeric_limits<numeric_type>::digits10 >= 39,
-                  "Error: Please use 39 or more decimal digits for BOOST_MANDELBROT_10_ZOOM_WIKI_01.");
+    static_assert(std::numeric_limits<numeric_type>::digits10 >= 47,
+                  "Error: Please use 47 or more decimal digits for BOOST_MANDELBROT_10_ZOOM_WIKI_01.");
 
-    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(10000), -78>;
+    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(20000), -91>;
 
-    const numeric_type delta("+2.7E-21");
+    const numeric_type delta("+3.0E-25");
     const numeric_type cx   (numeric_type("-0.743643887037158704752191506114774"));
     const numeric_type cy   (numeric_type("+0.131825904205311970493132056385139"));
 

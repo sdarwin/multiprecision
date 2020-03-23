@@ -10,37 +10,42 @@
 
 // This example uses Boost.Multiprecision to implement
 // a high-precision Mandelbrot iteration and visualization.
-// Graphic file creation uses Boost.Gil-old to wrap JPEG.
+// Graphic file creation uses Boost.Gil (old) to wrap JPEG.
 // Color-strething in combination with the histogram method
-// is used for creating vivid images.
+// is used for creating vivid images. The default color
+// scheme uses stretched, amplified and modulated black
+// and white coloring.
 
 // TBD: The color stretching and histogram methods
 // should be investigated and possibly refactored.
 // At the moment, they are programmed in a less intuitive
 // way that might be difficult to understand.
 
-// The Mandelbrot set consists of those points c in the complex plane
-// for which z_{n+1} = z_{n}^2 + c with z_{0} = 0 stays bounded.
+// The Mandelbrot set consists of those points c in the
+// complex plane for which the iteration
+//   z_{n+1} = z_{n}^2 + c with z_{0} = 0
+// stays bounded.
 // Interesting points could be points for which we have an orbit.
-// An orbit of length n is a sequence of z_{n}
-// z_{1} = c, z_{2}, ..., z{n}
-// Such that z_{n} = z_{1} and z_{n} != z_{k} with 1<k<n
-// In order to find these you need to revert to numerical methods.
-// The equation z_{n} = z_{1} can only be solved by hand for small n
-// A point c of order n will also show up as a point of order n_{m},
-// for some m > 1. Mark these points in your set.
+// An orbit of length n is a sequence of z_{n} with
+//   z_{1} = c, z_{2}, ..., z{n},
+// such that z_{n} = z_{1} and z_{n} != z_{k} with (1 < k < n).
+// In order to find these, numerical methods are needed.
+// The equation z_{n} = z_{1} can only be solved in closed form
+// by hand for small n. A point c of order n will also show up
+// as a point of order n_{m}, for some m > 1. Mark these points
+// in your set.
 
 // Any point that is inside the Mandelbrot set and close to the
 // boundary between the set and its complement as well as any point
 // outside the Mandelbrot set that is close to this boundary is an
 // interesting point. The closer you are to the boundary, the more
-// you need to zoom in to see the interesting parts.
-// All points on the x-axis between -2 and 1/4 belong to the Mandelbrot set.
+// you need to zoom in to see the interesting parts. In particular,
+// all points on the x-axis between -2 and 1/4 are in the Mandelbrot set.
 // Especially close to x = -2 (from the right), the point (x, 0)
 // is arbitrarily close to the boundary. So try the point (eps - 2, 0)
-// for a small eps > 0. Most Mandelbrot software that zooms in continually
-// tries to find a point close to the boundary while zooming, and uses
-// that as the zoom point.
+// for a small (eps > 0). Some Mandelbrot softwares use a strategy that
+// zooms in, continually trying to find a point close to the boundary
+// while zooming, and uses that as the zoom point.
 
 #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
@@ -429,45 +434,10 @@ public:
       }
     );
 
-    const std::uint_fast32_t total_pixels = static_cast<std::uint_fast32_t>(x_values.size() * y_values.size());
-
-    // Perform color-stretching using the histogram approach.
-    // Convert the histogram entries such that a given entry contains
-    // the sum of its own entries plus all previous entries. This provides
-    // a set of scale factors for the color. The histogram approach
-    // automatically scales to the distribution of pixels in the image.
-
     os << std::endl;
     os << "Perform color-stretching using the histogram approach." << std::endl;
 
-    const std::uint_fast32_t mandelbrot_sum =
-      std::accumulate(mandelbrot_color_histogram.begin(),
-                      mandelbrot_color_histogram.end(),
-                      std::uint_fast32_t(0U),
-      [&total_pixels](std::uint_fast32_t& sum, std::uint_fast32_t& histogram_entry) -> std::uint_fast32_t
-      {
-        sum += histogram_entry;
-
-        const float sum_div_total_pixels =
-          static_cast<float>(sum) / static_cast<float>(total_pixels);
-
-        const float histogram_scale = std::pow(sum_div_total_pixels, 1.2F);
-
-        std::uint_fast32_t scaled_histogram_value =
-          static_cast<std::uint_fast32_t>(histogram_scale * static_cast<float>(0xFFU));
-
-        if(scaled_histogram_value < 0xFFU)
-        {
-          scaled_histogram_value =
-            static_cast<std::uint_fast32_t>(std::pow(float(scaled_histogram_value), 1.0F));
-        }
-
-        histogram_entry = UINT32_C(0xFF) - scaled_histogram_value;
-
-        return sum;
-      });
-
-    static_cast<void>(mandelbrot_sum);
+    apply_color_stretches(x_values, y_values);
 
     apply_color_functions(x_values, y_values, color_functions);
 
@@ -476,6 +446,44 @@ public:
     os << std::endl
        << std::string("The ouptput file " + str_filename + " has been written")
        << std::endl;
+  }
+
+private:
+  const mandelbrot_config_type&                mandelbrot_config_object;
+
+  boost::gil::rgb8_image_t                     mandelbrot_image;
+  boost::gil::rgb8_view_t                      mandelbrot_view;
+
+  std::vector<std::vector<std::uint_fast32_t>> mandelbrot_iteration_matrix;
+  std::vector<std::uint_fast32_t>              mandelbrot_color_histogram;
+
+  void apply_color_stretches(const std::vector<NumericType>& x_values,
+                             const std::vector<NumericType>& y_values)
+  {
+    // Perform color-stretching using the histogram approach.
+    // Convert the histogram entries such that a given entry contains
+    // the sum of its own entries plus all previous entries. This provides
+    // a set of scale factors for the color. The histogram approach
+    // automatically scales to the distribution of pixels in the image.
+
+    const std::uint_fast32_t total_pixels = static_cast<std::uint_fast32_t>(x_values.size() * y_values.size());
+
+    std::uint_fast32_t mandelbrot_sum = 0U;
+
+    for(auto& histogram_entry : mandelbrot_color_histogram)
+    {
+      mandelbrot_sum += histogram_entry;
+
+      const float sum_div_total_pixels =
+        static_cast<float>(mandelbrot_sum) / static_cast<float>(total_pixels);
+
+      const float histogram_scale = std::pow(sum_div_total_pixels, 1.2F);
+
+      const std::uint_fast32_t scaled_histogram_value =
+        static_cast<std::uint_fast32_t>(histogram_scale * static_cast<float>(0xFFU));
+
+      histogram_entry = UINT32_C(0xFF) - scaled_histogram_value;
+    }
   }
 
   void apply_color_functions(const std::vector<NumericType>& x_values,
@@ -488,11 +496,12 @@ public:
       {
         const std::uint_fast32_t color = mandelbrot_color_histogram[mandelbrot_iteration_matrix[i_col][j_row]];
 
+        // Get the three hue values.
         const std::uint_fast32_t color_r = ((color <= 4U) ? color : color_functions.color_function_r(color));
         const std::uint_fast32_t color_g = ((color <= 4U) ? color : color_functions.color_function_g(color));
         const std::uint_fast32_t color_b = ((color <= 4U) ? color : color_functions.color_function_b(color));
 
-        // Mix the color supplied in the template hue parameters.
+        // Mix the color from the hue values.
         const std::uint8_t rh = static_cast<std::uint8_t>((255U * color_r) / UINT32_C(255));
         const std::uint8_t gh = static_cast<std::uint8_t>((255U * color_g) / UINT32_C(255));
         const std::uint8_t bh = static_cast<std::uint8_t>((255U * color_b) / UINT32_C(255));
@@ -503,15 +512,6 @@ public:
       }
     }
   }
-
-private:
-  const mandelbrot_config_type&                mandelbrot_config_object;
-
-  boost::gil::rgb8_image_t                     mandelbrot_image;
-  boost::gil::rgb8_view_t                      mandelbrot_view;
-
-  std::vector<std::vector<std::uint_fast32_t>> mandelbrot_iteration_matrix;
-  std::vector<std::uint_fast32_t>              mandelbrot_color_histogram;
 };
 
 } } } // namespace boost::multiprecision::mandelbrot
