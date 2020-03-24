@@ -174,7 +174,9 @@ int main()
 
   mandelbrot_generator_type mandelbrot_generator(mandelbrot_config_object);
 
-  mandelbrot_generator.generate_mandelbrot_image(str_filename);
+  mandelbrot_generator.generate_mandelbrot_image(str_filename,
+                                                 boost::multiprecision::mandelbrot::detail::color_functions_bw(),
+                                                 boost::multiprecision::mandelbrot::detail::color_stretches_default());
 
   const float elapsed = (float(std::clock()) - float(start)) / float(CLOCKS_PER_SEC);
 

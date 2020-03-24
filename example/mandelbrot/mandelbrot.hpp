@@ -16,11 +16,6 @@
 // scheme uses stretched, amplified and modulated black
 // and white coloring.
 
-// TBD: The color stretching and histogram methods
-// should be investigated and possibly refactored.
-// At the moment, they are programmed in a less intuitive
-// way that might be difficult to understand.
-
 // The Mandelbrot set consists of those points c in the
 // complex plane for which the iteration
 //   z_{n+1} = z_{n}^2 + c with z_{0} = 0
@@ -195,6 +190,57 @@ private:
     return static_cast<std::uint_fast32_t>((float(c) * float(c)) / 255.0F);
   }
 };
+
+class color_stretches_base
+{
+public:
+  virtual ~color_stretches_base() = default;
+
+  void init(const std::uint_fast32_t total_pixels)
+  {
+    my_total_pixels = total_pixels;
+    my_sum          = 0U;
+  }
+
+  virtual void color_stretch(std::uint_fast32_t&) = 0;
+
+protected:
+  std::uint_fast32_t my_total_pixels;
+  std::uint_fast32_t my_sum;
+
+  color_stretches_base() : my_total_pixels(0U),
+                           my_sum         (0U) { }
+};
+
+class color_stretches_default : public color_stretches_base
+{
+public:
+  color_stretches_default() = default;
+
+  virtual ~color_stretches_default() = default;
+
+  virtual void color_stretch(std::uint_fast32_t& histogram_entry)
+  {
+    // Perform color stretching using the histogram approach.
+    // Convert the histogram entries such that a given entry contains
+    // the sum of its own entries plus all previous entries. This provides
+    // a set of scale factors for the color. The histogram approach
+    // automatically scales to the distribution of pixels in the image.
+
+    my_sum += histogram_entry;
+
+    const float sum_div_total_pixels =
+      static_cast<float>(my_sum) / static_cast<float>(my_total_pixels);
+
+    const float histogram_scale = std::pow(sum_div_total_pixels, 1.2F);
+
+    const std::uint_fast32_t scaled_histogram_value =
+      static_cast<std::uint_fast32_t>(histogram_scale * static_cast<float>(0xFFU));
+
+    histogram_entry = UINT32_C(0xFF) - scaled_histogram_value;
+  }
+};
+
 } // namespace detail
 
 // Declare a base class for the Mandelbrot configuration.
@@ -350,9 +396,10 @@ public:
 
   ~mandelbrot_generator() = default;
 
-  void generate_mandelbrot_image(const std::string& str_filename,
+  void generate_mandelbrot_image(const std::string&                  str_filename,
                                  const detail::color_functions_base& color_functions = detail::color_functions_bw(),
-                                 std::ostream& os = std::cout)
+                                       detail::color_stretches_base& color_stretches = detail::color_stretches_default(),
+                                       std::ostream&                 output_stream   = std::cout)
   {
     // Setup the x-axis and y-axis coordinates.
 
@@ -379,20 +426,20 @@ public:
     (
       std::size_t(0U),
       y_values.size(),
-      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &os, &x_values, &y_values, this](std::size_t j_row)
+      [&mandelbrot_iteration_lock, &unordered_parallel_row_count, &output_stream, &x_values, &y_values, this](std::size_t j_row)
       {
         while(mandelbrot_iteration_lock.test_and_set()) { ; }
         ++unordered_parallel_row_count;
-        os << "Calculating Mandelbrot image at row "
-           << unordered_parallel_row_count
-           << " of "
-           << y_values.size()
-           << " total: "
-           << std::fixed
-           << std::setprecision(1)
-           << (100.0F * float(unordered_parallel_row_count)) / float(y_values.size())
-           << "%. Have patience."
-           << "\r";
+        output_stream << "Calculating Mandelbrot image at row "
+                      << unordered_parallel_row_count
+                      << " of "
+                      << y_values.size()
+                      << " total: "
+                      << std::fixed
+                      << std::setprecision(1)
+                      << (100.0F * float(unordered_parallel_row_count)) / float(y_values.size())
+                      << "%. Have patience."
+                      << "\r";
         mandelbrot_iteration_lock.clear();
 
         for(std::size_t i_col = 0U; i_col < x_values.size(); ++i_col)
@@ -434,18 +481,20 @@ public:
       }
     );
 
-    os << std::endl;
-    os << "Perform color-stretching using the histogram approach." << std::endl;
+    output_stream << std::endl;
 
-    apply_color_stretches(x_values, y_values);
+    output_stream << "Perform color stretching." << std::endl;
+    apply_color_stretches(x_values, y_values, color_stretches);
 
+    output_stream << "Apply color functions." << std::endl;
     apply_color_functions(x_values, y_values, color_functions);
 
+    output_stream << "Write JPEG file." << std::endl;
     boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
 
-    os << std::endl
-       << std::string("The ouptput file " + str_filename + " has been written")
-       << std::endl;
+    output_stream << std::endl
+                  << std::string("The ouptput file " + str_filename + " has been written")
+                  << std::endl;
   }
 
 private:
@@ -458,31 +507,14 @@ private:
   std::vector<std::uint_fast32_t>              mandelbrot_color_histogram;
 
   void apply_color_stretches(const std::vector<NumericType>& x_values,
-                             const std::vector<NumericType>& y_values)
+                             const std::vector<NumericType>& y_values,
+                             detail::color_stretches_base& color_stretches)
   {
-    // Perform color-stretching using the histogram approach.
-    // Convert the histogram entries such that a given entry contains
-    // the sum of its own entries plus all previous entries. This provides
-    // a set of scale factors for the color. The histogram approach
-    // automatically scales to the distribution of pixels in the image.
-
-    const std::uint_fast32_t total_pixels = static_cast<std::uint_fast32_t>(x_values.size() * y_values.size());
-
-    std::uint_fast32_t mandelbrot_sum = 0U;
+    color_stretches.init(static_cast<std::uint_fast32_t>(x_values.size() * y_values.size()));
 
     for(auto& histogram_entry : mandelbrot_color_histogram)
     {
-      mandelbrot_sum += histogram_entry;
-
-      const float sum_div_total_pixels =
-        static_cast<float>(mandelbrot_sum) / static_cast<float>(total_pixels);
-
-      const float histogram_scale = std::pow(sum_div_total_pixels, 1.2F);
-
-      const std::uint_fast32_t scaled_histogram_value =
-        static_cast<std::uint_fast32_t>(histogram_scale * static_cast<float>(0xFFU));
-
-      histogram_entry = UINT32_C(0xFF) - scaled_histogram_value;
+      color_stretches.color_stretch(histogram_entry);
     }
   }
 
