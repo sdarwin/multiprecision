@@ -73,7 +73,7 @@ int main()
     const std::string str_filename = "mandelbrot_" + std::string("BOOST_MANDELBROT_06_BRANCHES") + ".jpg";
 
     // This is a spiral image of branches.
-    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(2000), -48>;
+    using mandelbrot_config_type = boost::multiprecision::mandelbrot::mandelbrot_config<numeric_type, UINT32_C(2000), -47>;
 
     const mandelbrot_config_type mandelbrot_config_object(+0.3369844464873L - 4.2E-12L, +0.3369844464873L + 4.2E-12L,
                                                           +0.0487782196791L - 4.2E-12L, +0.0487782196791L + 4.2E-12L);

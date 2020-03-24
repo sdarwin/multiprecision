@@ -144,7 +144,7 @@ public:
 protected:
   color_functions_base() = default;
 
-  static std::uint_fast32_t color_phaser(const std::uint_fast32_t& c)
+  static std::uint_fast32_t color_phaser_01(const std::uint_fast32_t& c)
   {
     const float color_phase = (float(c) / 255.0F) * (3.1415926535897932385F * 8.0F);
 
@@ -162,9 +162,9 @@ public:
   virtual ~color_functions_bw() = default;
 
 private:
-  virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t& c) const { return color_phaser(c); }
-  virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t& c) const { return color_phaser(c); }
-  virtual std::uint_fast32_t color_function_b(const std::uint_fast32_t& c) const { return color_phaser(c); }
+  virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t& c) const { return color_phaser_01(c); }
+  virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t& c) const { return color_phaser_01(c); }
+  virtual std::uint_fast32_t color_function_b(const std::uint_fast32_t& c) const { return color_phaser_01(c); }
 };
 
 class color_functions_pretty final : public color_functions_base
@@ -177,7 +177,7 @@ public:
 private:
   virtual std::uint_fast32_t color_function_r(const std::uint_fast32_t& c) const
   {
-    return color_phaser(c);
+    return color_phaser_01(c);
   }
 
   virtual std::uint_fast32_t color_function_g(const std::uint_fast32_t& c) const
