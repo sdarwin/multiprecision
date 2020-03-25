@@ -52,7 +52,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iomanip>
-#include <numeric>
 #include <ostream>
 #include <string>
 #include <thread>
@@ -212,7 +211,7 @@ protected:
                            my_sum         (0U) { }
 };
 
-class color_stretches_default : public color_stretches_base
+class color_stretches_default final : public color_stretches_base
 {
 public:
   color_stretches_default() = default;
@@ -311,7 +310,7 @@ private:
 template<typename NumericType,
          const std::uint_fast32_t MaxIterations,
          const int MandelbrotFractionalResolution>
-class mandelbrot_config : public mandelbrot_config_base<NumericType, MaxIterations>
+class mandelbrot_config final : public mandelbrot_config_base<NumericType, MaxIterations>
 {
 private:
   using base_class_type = mandelbrot_config_base<NumericType, MaxIterations>;
@@ -376,7 +375,7 @@ private:
 // The coordinates are set up according to the Mandelbrot configuration.
 template<typename NumericType,
          const std::uint_fast32_t MaxIterations>
-class mandelbrot_generator
+class mandelbrot_generator final
 {
 public:
   static const std::uint_fast32_t max_iterations = MaxIterations;
