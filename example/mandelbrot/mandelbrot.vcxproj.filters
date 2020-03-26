@@ -177,8 +177,5 @@
     <ClInclude Include="jpeg-6b\transupp.h">
       <Filter>Source Files\jpeg-6b</Filter>
     </ClInclude>
-    <ClInclude Include="mandelbrot.hpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
