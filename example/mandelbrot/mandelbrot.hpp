@@ -77,8 +77,11 @@ void parallel_for(index_type             start,
   static const unsigned int number_of_threads_hint =
     std::thread::hardware_concurrency();
 
-  static const unsigned int number_of_threads =
+  static const unsigned int number_of_threads_total =
     ((number_of_threads_hint == 0U) ? 4U : number_of_threads_hint);
+
+  // Use only 3/4 of the available cores.
+  static const unsigned int number_of_threads = number_of_threads_total - (number_of_threads_total / 4U);
 
   // Set the size of a slice for the range functions.
   index_type n = index_type(end - start) + index_type(1);
