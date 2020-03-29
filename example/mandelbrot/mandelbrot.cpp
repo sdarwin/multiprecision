@@ -5,26 +5,29 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 //
 
+// A well-known example of fractal is the Mandelbrot set,
+// which is based upon the function z_{n+1} = z_{n}^2 + c.
+// A common way of coloring Mandelbrot images is by taking
+// the number of iterations required to reach non-bounded
+// divergence from c and then assigning that value a color.
+
 // This example uses Boost.Multiprecision to implement
 // a high-precision Mandelbrot iteration and visualization.
 // Graphic file creation uses Boost.Gil (old) to wrap JPEG.
 // Color-strething in combination with the histogram method
 // is used for creating vivid images. The default color
 // scheme uses stretched, amplified and modulated black
-// and white coloring.
-
-// A well-known example of fractal is the Mandelbrot set,
-// which is based upon the function z_{n+1} = z_{n}^2 + c.
-// A common way of coloring Mandelbrot images is by taking
-// the number of iterations required to reach non-bounded
-// divergence from c and then assigning that value a color.
-// This is called the escape time algorithm.
+// and white coloring. The Mandelbrot iteration is carried
+// out with hardware concurrency with multiple threads.
+// The multithreading dispatcher used 3/4 of the available
+// CPU cores that can be found using hardware concurrency.
 
 // The Mandelbrot set consists of those points c in the
 // complex plane for which the iteration
-//   z_{n+1} = z_{n}^2 + c with z_{0} = 0
-// stays bounded.
-// Interesting points could be points for which we have an orbit.
+//   z_{n+1} = z_{n}^2 + c,
+// with z_{0} = 0 stays bounded.
+
+// Interesting iteration points could be points having an orbit.
 // An orbit of length n is a sequence of z_{n} with
 //   z_{1} = c, z_{2}, ..., z{n},
 // such that z_{n} = z_{1} and z_{n} != z_{k} with (1 < k < n).
@@ -68,7 +71,38 @@
 #include <boost/gil/typedefs.hpp>
 #include <boost/lexical_cast.hpp>
 
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_01_FULL                  1
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_03_TOP                   3
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_04_SWIRL                 4
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_05_SEAHORSES             5
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_06_BRANCHES              6
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_07_SEAHORSE_VALLEY       7
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_08_DEEP_DIVE_01          8
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_09_DEEP_DIVE_02          9
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_10_ZOOM_WIKI_01         10
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP       11
+
+#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_CPP_DEC_FLOAT       101
+#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_GMP_FLOAT           102
+
+#if !defined(BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX)
+#define BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_05_SEAHORSES
+#endif
+
+#if !defined(BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE)
+#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_CPP_DEC_FLOAT
+//#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_GMP_FLOAT
+#endif
+
+#if  (BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE == BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_CPP_DEC_FLOAT)
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME cpp_dec_float
+#elif(BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE == BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_GMP_FLOAT)
+#include <boost/multiprecision/gmp.hpp>
+#define BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME gmp_float
+#else
+#error BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_TYPE is undefined.
+#endif
 
 namespace boost { namespace multiprecision { namespace mandelbrot {
 
@@ -616,29 +650,14 @@ private:
 
 } } } // namespace boost::multiprecision::mandelbrot
 
-#define BOOST_MANDELBROT_IMAGE_INDEX_01_FULL                  1
-#define BOOST_MANDELBROT_IMAGE_INDEX_03_TOP                   3
-#define BOOST_MANDELBROT_IMAGE_INDEX_04_SWIRL                 4
-#define BOOST_MANDELBROT_IMAGE_INDEX_05_SEAHORSES             5
-#define BOOST_MANDELBROT_IMAGE_INDEX_06_BRANCHES              6
-#define BOOST_MANDELBROT_IMAGE_INDEX_07_SEAHORSE_VALLEY       7
-#define BOOST_MANDELBROT_IMAGE_INDEX_08_DEEP_DIVE_01          8
-#define BOOST_MANDELBROT_IMAGE_INDEX_09_DEEP_DIVE_02          9
-#define BOOST_MANDELBROT_IMAGE_INDEX_10_ZOOM_WIKI_01         10
-#define BOOST_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP       11
-
-#if !defined(BOOST_MANDELBROT_IMAGE_INDEX)
-#define BOOST_MANDELBROT_IMAGE_INDEX BOOST_MANDELBROT_IMAGE_INDEX_05_SEAHORSES
-#endif
-
 int main()
 {
-  #if (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_01_FULL)
+  #if (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_01_FULL)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_01_FULL") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_01_FULL") + ".jpg";
 
     // This is the classic full immage.
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(2000), -11>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
@@ -647,25 +666,25 @@ int main()
     const mandelbrot_numeric_type cx        (-0.75L);
     const mandelbrot_numeric_type cy        (+0.0L);
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_03_TOP)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_03_TOP)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_03_TOP") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_03_TOP") + ".jpg";
 
     // This is a view of an upper part of the image (near the top of the classic full view).
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(1000), -12>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
     const mandelbrot_numeric_type delta_half("0.282");
     const mandelbrot_numeric_type cx        ("-0.130");
-    const mandelbrot_numeric_type cy        ("+0.856");
+    const mandelbrot_numeric_type cy        ("0.856");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_04_SWIRL)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_04_SWIRL)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_04_SWIRL") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_04_SWIRL") + ".jpg";
 
     // This is a fanning swirl image.
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(2000), -22>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
@@ -673,120 +692,122 @@ int main()
     const mandelbrot_numeric_type cx        ("-0.749730");
     const mandelbrot_numeric_type cy        ("-0.046608");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_05_SEAHORSES)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_05_SEAHORSES)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_05_SEAHORSES") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_05_SEAHORSES") + ".jpg";
 
     // This is a swirly seahorse image.
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(2000), -48>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
     const mandelbrot_numeric_type delta_half("1.76E-12");
     const mandelbrot_numeric_type cx        ("-0.7453983606667815");
-    const mandelbrot_numeric_type cy        ("+0.1125046349959942");
+    const mandelbrot_numeric_type cy        ("0.1125046349959942");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_06_BRANCHES)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_06_BRANCHES)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_06_BRANCHES") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_06_BRANCHES") + ".jpg";
 
     // This is a spiral image of branches.
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(2000), -47>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
     const mandelbrot_numeric_type delta_half("4.2E-12");
-    const mandelbrot_numeric_type cx        ("+0.3369844464873");
-    const mandelbrot_numeric_type cy        ("+0.0487782196791");
+    const mandelbrot_numeric_type cx        ("0.3369844464873");
+    const mandelbrot_numeric_type cy        ("0.0487782196791");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_07_SEAHORSE_VALLEY)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_07_SEAHORSE_VALLEY)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_07_SEAHORSE_VALLEY") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_07_SEAHORSE_VALLEY") + ".jpg";
 
     // This is an image from the seahorse valley.
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<31>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<31>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(1000), -15>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
     const mandelbrot_numeric_type delta_half("0.024");
     const mandelbrot_numeric_type cx        ("-0.748");
-    const mandelbrot_numeric_type cy        ("+0.222");
+    const mandelbrot_numeric_type cy        ("0.222");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_08_DEEP_DIVE_01)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_08_DEEP_DIVE_01)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_08_DEEP_DIVE_01") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_08_DEEP_DIVE_01") + ".jpg";
 
     // This is a deep zoom image.
-    // Note: Use 127 or more decimal digits for this iteration.
+    // Note: Use 143 or more decimal digits for this iteration.
 
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<127>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<143>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(2000), -365>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
-    const mandelbrot_numeric_type delta_half("+1.25E-107");
+    const mandelbrot_numeric_type delta_half("1.25E-107");
     const mandelbrot_numeric_type cx        ("-1.99999999913827011875827476290869498831680913663682095950680227271547027727918984035447670553861909622481524124");
-    const mandelbrot_numeric_type cy        ("+0.00000000000001314895443507637575136247566806505002151700520912095709529449343530548994027524594471095886432006");
+    const mandelbrot_numeric_type cy        ("0.00000000000001314895443507637575136247566806505002151700520912095709529449343530548994027524594471095886432006");
 
-    static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 127,
-                  "Error: Please use 127 or more decimal digits for BOOST_MANDELBROT_08_DEEP_DIVE_01.");
+    static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 143,
+                  "Error: Please use 143 or more decimal digits for BOOST_MULTIPRECISION_MANDELBROT_08_DEEP_DIVE_01.");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX == BOOST_MANDELBROT_IMAGE_INDEX_09_DEEP_DIVE_02)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX == BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_09_DEEP_DIVE_02)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_09_DEEP_DIVE_02") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_09_DEEP_DIVE_02") + ".jpg";
 
     // This is a deep zoom image.
     // Note: Use 79 or more decimal digits for this iteration.
 
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<79>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<79>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(10000), -191>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
-    const mandelbrot_numeric_type delta_half("+2.15E-55");
+    const mandelbrot_numeric_type delta_half("2.15E-55");
     const mandelbrot_numeric_type cx        ("-1.295189082147777457017064177185681926706566460884888469217456");
-    const mandelbrot_numeric_type cy        ("+0.440936982678320138880903678356262612113214627431396203682661");
+    const mandelbrot_numeric_type cy        ("0.440936982678320138880903678356262612113214627431396203682661");
 
     static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 79,
-                  "Error: Please use 79 or more decimal digits for BOOST_MANDELBROT_09_DEEP_DIVE_02.");
+                  "Error: Please use 79 or more decimal digits for BOOST_MULTIPRECISION_MANDELBROT_09_DEEP_DIVE_02.");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX ==  BOOST_MANDELBROT_IMAGE_INDEX_10_ZOOM_WIKI_01)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX ==  BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_10_ZOOM_WIKI_01)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_10_ZOOM_WIKI_01") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_10_ZOOM_WIKI_01") + ".jpg";
 
     // This is a medium zoom image from the zoom coordinates of:
     // http://en.wikipedia.org/wiki/File:Mandelbrot_sequence_new.gif
     // Note: Use 39 or more decimal digits for this iteration.
 
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<47>, boost::multiprecision::et_off>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<47>, boost::multiprecision::et_off>;
     using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(20000), -91>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
-    const mandelbrot_numeric_type delta_half("+3.0E-25");
+    const mandelbrot_numeric_type delta_half("3.0E-25");
     const mandelbrot_numeric_type cx        ("-0.743643887037158704752191506114774");
-    const mandelbrot_numeric_type cy        ("+0.131825904205311970493132056385139");
+    const mandelbrot_numeric_type cy        ("0.131825904205311970493132056385139");
 
     static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 47,
-                  "Error: Please use 47 or more decimal digits for BOOST_MANDELBROT_10_ZOOM_WIKI_01.");
+                  "Error: Please use 47 or more decimal digits for BOOST_MULTIPRECISION_MANDELBROT_10_ZOOM_WIKI_01.");
 
-  #elif (BOOST_MANDELBROT_IMAGE_INDEX ==  BOOST_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP)
+  #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX ==  BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP)
 
-    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP") + ".jpg";
+    const std::string str_filename = "images/mandelbrot_" + std::string("BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_11_ZOOM_VERY_DEEP") + ".jpg";
 
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<335>, boost::multiprecision::et_off>;
-    using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(80000), -972>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<351>, boost::multiprecision::et_off>;
+    using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, UINT32_C(60000), -1040>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
     // At the moment, this is my personal best deep dive.
-    // It reaches magnification of approximately 10^290.
+    // It features magnification of approximately 1e310,
+    // which is 1 and 310 zeros. The iteration required
+    // for generating this image takes about 5-10 hours.
 
     // TBD: Try to zoom even deeper with higher precision and more iterations.
     // The remarkable video here: https://www.youtube.com/watch?v=pCpLWbHVNhk
     // makes use of the same high-precision coordinate (shown below).
     // The author of that video, for instance, reports and beautifully
-    // depicts achieving a deep zoom of approximately 10^1091 at this
+    // depicts achieving a deep zoom of approximately 1e1091 at this
     // staggeringly high-precision coordinate.
 
-    const mandelbrot_numeric_type delta_half("+1.0E-290");
-    const mandelbrot_numeric_type cx        ("+0.360240443437614363236125244449545308482607807958585750488375814740195346059218100311752936722773426396233731729724987737320035372683285317664532401218521579554288661726564324134702299962817029213329980895208036363104546639698106204384566555001322985619004717862781192694046362748742863016467354574422779443226982622356594130430232458472420816652623492974891730419252651127672782407292315574480207005828774566475024380960675386215814315654794021855269375824443853463117354448779647099224311848192893972572398662626725254769950976527431277402440752868498588785436705371093442460696090720654908973712759963732914849861213100695402602927267843779747314419332179148608587129105289166676461292845685734536033692577618496925170576714796693411776794742904333484665301628662532967079174729170714156810530598764525260869731233845987202037712637770582084286587072766838497865108477149114659838883818795374195150936369987302574377608649625020864292915913378927790344097552591919409137354459097560040374880346637533711271919419723135538377394364882968994646845930838049998854075817859391340445151448381853615103761584177161812057928");
+    const mandelbrot_numeric_type delta_half("4.4E-311");
+    const mandelbrot_numeric_type cx        ("0.360240443437614363236125244449545308482607807958585750488375814740195346059218100311752936722773426396233731729724987737320035372683285317664532401218521579554288661726564324134702299962817029213329980895208036363104546639698106204384566555001322985619004717862781192694046362748742863016467354574422779443226982622356594130430232458472420816652623492974891730419252651127672782407292315574480207005828774566475024380960675386215814315654794021855269375824443853463117354448779647099224311848192893972572398662626725254769950976527431277402440752868498588785436705371093442460696090720654908973712759963732914849861213100695402602927267843779747314419332179148608587129105289166676461292845685734536033692577618496925170576714796693411776794742904333484665301628662532967079174729170714156810530598764525260869731233845987202037712637770582084286587072766838497865108477149114659838883818795374195150936369987302574377608649625020864292915913378927790344097552591919409137354459097560040374880346637533711271919419723135538377394364882968994646845930838049998854075817859391340445151448381853615103761584177161812057928");
     const mandelbrot_numeric_type cy        ("-0.6413130610648031748603750151793020665794949522823052595561775430644485741727536902556370230689681162370740565537072149790106973211105273740851993394803287437606238596262287731075999483940467161288840614581091294325709988992269165007394305732683208318834672366947550710920088501655704252385244481168836426277052232593412981472237968353661477793530336607247738951625817755401065045362273039788332245567345061665756708689359294516668271440525273653083717877701237756144214394870245598590883973716531691124286669552803640414068523325276808909040317617092683826521501539932397262012011082098721944643118695001226048977430038509470101715555439047884752058334804891389685530946112621573416582482926221804767466258346014417934356149837352092608891639072745930639364693513216719114523328990690069588676087923656657656023794484324797546024248328156586471662631008741349069961493817600100133439721557969263221185095951241491408756751582471307537382827924073746760884081704887902040036056611401378785952452105099242499241003208013460878442953408648178692353788153787229940221611731034405203519945313911627314900851851072122990492499999999999999999991");
 
   #else

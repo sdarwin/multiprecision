@@ -8,6 +8,12 @@
     <Filter Include="Source Files\jpeg-6b">
       <UniqueIdentifier>{efed483f-a695-4e0b-b3a9-9b221c47590d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\mpir">
+      <UniqueIdentifier>{f10f8e4c-d2e3-48a8-b7ec-b97092adf244}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\mpir\x64">
+      <UniqueIdentifier>{68bd4116-72f4-4401-9c9a-fe9ac91b905f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="jpeg-6b\jcapimin.c">
@@ -135,12 +141,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="jpeg-6b\cderror.h">
-      <Filter>Source Files\jpeg-6b</Filter>
-    </ClInclude>
-    <ClInclude Include="jpeg-6b\cdjpeg.h">
-      <Filter>Source Files\jpeg-6b</Filter>
-    </ClInclude>
     <ClInclude Include="jpeg-6b\jchuff.h">
       <Filter>Source Files\jpeg-6b</Filter>
     </ClInclude>
@@ -174,8 +174,13 @@
     <ClInclude Include="jpeg-6b\jversion.h">
       <Filter>Source Files\jpeg-6b</Filter>
     </ClInclude>
-    <ClInclude Include="jpeg-6b\transupp.h">
-      <Filter>Source Files\jpeg-6b</Filter>
+    <ClInclude Include="mpir\x64\gmp.h">
+      <Filter>Source Files\mpir\x64</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="mpir\x64\mpir.lib">
+      <Filter>Source Files\mpir\x64</Filter>
+    </Library>
   </ItemGroup>
 </Project>

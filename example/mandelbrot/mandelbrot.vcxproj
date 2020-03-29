@@ -73,7 +73,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)jpeg-6b;$(SolutionDir);C:\boost\boost_1_72_0;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)jpeg-6b;$(SolutionDir)mpir\x64;$(SolutionDir);C:\boost\boost_1_72_0;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -81,7 +81,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)jpeg-6b;$(SolutionDir);C:\boost\boost_1_72_0;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)jpeg-6b;$(SolutionDir)mpir\x64;$(SolutionDir);C:\boost\boost_1_72_0;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -203,8 +203,6 @@
     <ClCompile Include="mandelbrot.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="jpeg-6b\cderror.h" />
-    <ClInclude Include="jpeg-6b\cdjpeg.h" />
     <ClInclude Include="jpeg-6b\jchuff.h" />
     <ClInclude Include="jpeg-6b\jconfig.h" />
     <ClInclude Include="jpeg-6b\jdct.h" />
@@ -216,7 +214,10 @@
     <ClInclude Include="jpeg-6b\jpegint.h" />
     <ClInclude Include="jpeg-6b\jpeglib.h" />
     <ClInclude Include="jpeg-6b\jversion.h" />
-    <ClInclude Include="jpeg-6b\transupp.h" />
+    <ClInclude Include="mpir\x64\gmp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="mpir\x64\mpir.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
