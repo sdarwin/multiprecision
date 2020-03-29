@@ -1,6 +1,6 @@
 echo off
 
-set BOOST_MANDELBROT_IMAGE_INDEX_VALUE=%1
+set INDEX_VALUE=%1
 
 echo.
 echo building mandelbrot.exe
@@ -48,7 +48,7 @@ g++ -w -std=c99 -O3 -march=native -I./jpeg-6b -x c -c jpeg-6b/jmemmgr.c  -o jmem
 g++ -w -std=c99 -O3 -march=native -I./jpeg-6b -x c -c jpeg-6b/jquant1.c  -o jquant1.o
 g++ -w -std=c99 -O3 -march=native -I./jpeg-6b -x c -c jpeg-6b/jquant2.c  -o jquant2.o
 g++ -w -std=c99 -O3 -march=native -I./jpeg-6b -x c -c jpeg-6b/jutils.c   -o jutils.o
-g++ -Wall -Wextra -pedantic -std=c++17 -O3 -march=native -DBOOST_MANDELBROT_IMAGE_INDEX="%BOOST_MANDELBROT_IMAGE_INDEX_VALUE%" -I./jpeg-6b -I. -IC:/boost/boost_1_72_0 -x c++ -c mandelbrot.cpp -o mandelbrot.o
+g++ -Wall -Wextra -pedantic -std=c++17 -O3 -march=native -DBOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX="%INDEX_VALUE%" -I./jpeg-6b -I. -IC:/boost/boost_1_72_0 -x c++ -c mandelbrot.cpp -o mandelbrot.o
 g++ -Wall -Wextra -pedantic -std=c++17 -O3 -march=native -x none jcapimin.o jcapistd.o jccoefct.o jccolor.o jcdctmgr.o jchuff.o jcinit.o jcmainct.o jcmarker.o jcmaster.o jcomapi.o jcparam.o jcphuff.o jcprepct.o jcsample.o jctrans.o jdapimin.o jdatadst.o jdcoefct.o jdcolor.o jddctmgr.o jdinput.o jdmainct.o jdmarker.o jdmerge.o jdpostct.o jdsample.o jerror.o jfdctflt.o jfdctfst.o jfdctint.o jidctflt.o jidctfst.o jidctint.o jidctred.o jmemansi.o jmemmgr.o jquant1.o jquant2.o jutils.o mandelbrot.o -o mandelbrot.exe
 
 echo off
