@@ -56,9 +56,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
-#include <ctime>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <ostream>
@@ -330,18 +330,16 @@ public:
 
   std::uint_fast32_t integral_width() const
   {
-    const std::uint_fast32_t non_justified_width =
-      static_cast<std::uint_fast32_t>((static_cast<std::uint_fast32_t>((my_width * 2) / this->step()) + 1U) / 2U);
+    const std::uint_fast32_t non_rounded_width2 = static_cast<std::uint_fast32_t>((my_width * 2) / this->step());
 
-    return non_justified_width;
+    return static_cast<std::uint_fast32_t>(non_rounded_width2 + 1U) / 2U;
   }
 
   std::uint_fast32_t integral_height() const
   {
-    const std::uint_fast32_t non_justified_height =
-      static_cast<std::uint_fast32_t>((static_cast<std::uint_fast32_t>((my_height * 2) / this->step()) + 1U) / 2U);
+    const std::uint_fast32_t non_rounded_height2 = static_cast<std::uint_fast32_t>((my_height * 2) / this->step());
 
-    return non_justified_height;
+    return static_cast<std::uint_fast32_t>(non_rounded_height2 + 1U) / 2U;
   }
 
 protected:
@@ -514,7 +512,7 @@ public:
                       << unordered_parallel_row_count
                       << " of "
                       << y_values.size()
-                      << " total: "
+                      << ". Total processed so far: "
                       << std::fixed
                       << std::setprecision(1)
                       << (100.0 * double(unordered_parallel_row_count)) / double(y_values.size())
@@ -569,12 +567,8 @@ public:
     output_stream << "Apply color functions." << std::endl;
     apply_color_functions(x_values, y_values, color_functions);
 
-    output_stream << "Write JPEG file." << std::endl;
+    output_stream << "Write output JPEG file " << str_filename << "." << std::endl;
     boost::gil::jpeg_write_view(str_filename, mandelbrot_view);
-
-    output_stream << std::endl
-                  << std::string("The ouptput file " + str_filename + " has been written")
-                  << std::endl;
   }
 
 private:
@@ -795,20 +789,19 @@ int main()
 
   #endif
 
-  const mandelbrot_config_type
-    mandelbrot_config_object(cx - delta_half, cx + delta_half,
-                             cy - delta_half, cy + delta_half);
+  const mandelbrot_config_type mandelbrot_config_object(cx - delta_half, cx + delta_half,
+                                                        cy - delta_half, cy + delta_half);
 
   using mandelbrot_generator_type =
     boost::multiprecision::mandelbrot::mandelbrot_generator<mandelbrot_numeric_type,
                                                             mandelbrot_config_type::max_iterations>;
 
-  const std::clock_t start = std::clock();
-
         boost::multiprecision::mandelbrot::detail::color_stretches_default local_color_stretches;
   const boost::multiprecision::mandelbrot::detail::color_functions_bw      local_color_functions;
 
   mandelbrot_generator_type mandelbrot_generator(mandelbrot_config_object);
+
+  const std::clock_t start = std::clock();
 
   mandelbrot_generator.generate_mandelbrot_image(str_filename,
                                                  local_color_functions,
