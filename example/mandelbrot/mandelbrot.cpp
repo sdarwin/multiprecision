@@ -728,15 +728,15 @@ int main()
     // This is a deep zoom image.
     // Note: Use 79 or more decimal digits for this iteration.
 
-    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<79>, boost::multiprecision::et_off>;
-    using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, 10000U, 2048U>;
+    using local_numeric_type      = boost::multiprecision::number<boost::multiprecision::BOOST_MULTIPRECISION_MANDELBROT_NUMBER_BACKEND_NAME<95>, boost::multiprecision::et_off>;
+    using mandelbrot_config_type  = boost::multiprecision::mandelbrot::mandelbrot_config<local_numeric_type, 15000U, 2048U>;
     using mandelbrot_numeric_type = mandelbrot_config_type::mandelbrot_config_numeric_type;
 
-    const mandelbrot_numeric_type delta_half("2.20E-55");
+    const mandelbrot_numeric_type delta_half("2.55E-55");
     const mandelbrot_numeric_type cx        ("-1.295189082147777457017064177185681926706566460884888469217456");
     const mandelbrot_numeric_type cy        ("0.440936982678320138880903678356262612113214627431396203682661");
 
-    static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 79,
+    static_assert(std::numeric_limits<mandelbrot_numeric_type>::digits10 >= 95,
                   "Error: Please use 79 or more decimal digits for BOOST_MULTIPRECISION_MANDELBROT_09_DEEP_DIVE_02.");
 
   #elif (BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX ==  BOOST_MULTIPRECISION_MANDELBROT_IMAGE_INDEX_10_ZOOM_WIKI_01)
